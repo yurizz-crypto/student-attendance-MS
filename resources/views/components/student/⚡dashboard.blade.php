@@ -45,204 +45,197 @@ new class extends Component {
     }
 }; ?>
 
-<div class="space-y-6">
+<div class="space-y-8 animate-fade-in-up">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight text-gray-900">Welcome back, {{ auth()->user()->first_name }}!</h1>
-            <p class="text-sm text-gray-500">Student ID: {{ auth()->user()->identity_id }} • BS Information Technology</p>
+            <h1 class="text-3xl font-bold tracking-tight text-navy">Welcome back, {{ auth()->user()->first_name ?? 'Student' }}!</h1>
+            <p class="text-sm font-medium text-gray-500 mt-1">Student ID: {{ auth()->user()->identity_id ?? 'N/A' }} <span class="mx-2">•</span> BSIT 3A</p>
         </div>
-        <div class="self-start sm:self-center">
-            <span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Good Standing</span>
-        </div>
-    </div>
-
-    <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <div class="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
-            <div class="flex items-center space-x-2 text-xs sm:text-sm font-medium text-gray-500 mb-2">
-                <svg class="h-4 w-4 text-indigo-500 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" /></svg>
-                <span>Rate</span>
-            </div>
-            <div class="text-2xl sm:text-3xl font-bold text-gray-900">{{ $stats['attendance_rate'] }}%</div>
-        </div>
-        <div class="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
-            <div class="flex items-center space-x-2 text-xs sm:text-sm font-medium text-gray-500 mb-2">
-                <div class="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-green-500"></div>
-                <span>Present</span>
-            </div>
-            <div class="text-2xl sm:text-3xl font-bold text-gray-900">{{ $stats['present'] }}</div>
-        </div>
-        <div class="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
-            <div class="flex items-center space-x-2 text-xs sm:text-sm font-medium text-gray-500 mb-2">
-                <div class="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-red-500"></div>
-                <span>Absent</span>
-            </div>
-            <div class="text-2xl sm:text-3xl font-bold text-gray-900">{{ $stats['absent'] }}</div>
-        </div>
-        <div class="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
-            <div class="flex items-center space-x-2 text-xs sm:text-sm font-medium text-gray-500 mb-2">
-                <div class="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-yellow-500"></div>
-                <span>Late</span>
-            </div>
-            <div class="text-2xl sm:text-3xl font-bold text-gray-900">{{ $stats['late'] }}</div>
+        <div class="bg-surface px-4 py-2 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3">
+            <div class="w-2 h-2 rounded-full bg-success animate-pulse"></div>
+            <span class="text-sm font-semibold text-navy">Semester: Fall 2026</span>
         </div>
     </div>
 
-    <div class="border-b border-gray-200 overflow-x-auto hide-scrollbar">
-        <nav class="-mb-px flex space-x-8 min-w-max" aria-label="Tabs">
-            <button wire:click="setTab('scanner')" 
-                class="whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition-colors {{ $activeTab === 'scanner' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700' }}">
-                Mark Attendance
-            </button>
-            <button wire:click="setTab('excuse')" 
-                class="whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition-colors {{ $activeTab === 'excuse' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700' }}">
-                Upload Excuse
-            </button>
-            <button wire:click="setTab('history')" 
-                class="whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition-colors {{ $activeTab === 'history' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700' }}">
-                Attendance History
-            </button>
-        </nav>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div class="bg-surface rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center gap-4 hover:shadow-md transition-shadow">
+            <div class="w-12 h-12 rounded-2xl bg-info/10 text-info flex items-center justify-center shrink-0">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 13h2.625L7.5 9.25l3.25 7.5L14.375 13H21" />
+                </svg>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-gray-500">Overall Rate</p>
+                <p class="text-2xl font-bold text-navy">{{ $stats['attendance_rate'] }}%</p>
+            </div>
+        </div>
+
+        <div class="bg-surface rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center gap-4 hover:shadow-md transition-shadow">
+            <div class="w-12 h-12 rounded-2xl bg-success/10 text-success flex items-center justify-center shrink-0">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-gray-500">Present</p>
+                <p class="text-2xl font-bold text-navy">{{ $stats['present'] }}</p>
+            </div>
+        </div>
+
+        <div class="bg-surface rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center gap-4 hover:shadow-md transition-shadow">
+            <div class="w-12 h-12 rounded-2xl bg-error/10 text-error flex items-center justify-center shrink-0">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-gray-500">Absent</p>
+                <p class="text-2xl font-bold text-navy">{{ $stats['absent'] }}</p>
+            </div>
+        </div>
+
+        <div class="bg-surface rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center gap-4 hover:shadow-md transition-shadow">
+            <div class="w-12 h-12 rounded-2xl bg-warning/10 text-warning flex items-center justify-center shrink-0">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-gray-500">Late</p>
+                <p class="text-2xl font-bold text-navy">{{ $stats['late'] }}</p>
+            </div>
+        </div>
     </div>
 
-    <div class="mt-6">
-        @if($activeTab === 'scanner')
-            <div class="mx-auto max-w-md rounded-xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8 relative overflow-hidden">
-                <h3 class="mb-4 text-center text-xl font-bold text-gray-900">Session Check-In</h3>
-                <p class="mb-6 text-center text-sm text-gray-500">Enter the 6-digit code provided by your instructor or scan the class QR code.</p>
+    <div class="bg-surface rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="flex border-b border-gray-100 bg-gray-50/50 px-2 sm:px-6 pt-2 overflow-x-auto hide-scrollbar">
+            <button wire:click="setTab('scanner')" class="px-6 py-4 text-sm font-bold border-b-2 transition-all whitespace-nowrap {{ $activeTab === 'scanner' ? 'border-brand text-brand' : 'border-transparent text-gray-400 hover:text-navy hover:border-gray-300' }}">
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" /><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" /></svg>
+                    QR Scanner
+                </div>
+            </button>
+            <button wire:click="setTab('manual')" class="px-6 py-4 text-sm font-bold border-b-2 transition-all whitespace-nowrap {{ $activeTab === 'manual' ? 'border-brand text-brand' : 'border-transparent text-gray-400 hover:text-navy hover:border-gray-300' }}">
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" /></svg>
+                    Manual Entry
+                </div>
+            </button>
+            <button wire:click="setTab('excuse')" class="px-6 py-4 text-sm font-bold border-b-2 transition-all whitespace-nowrap {{ $activeTab === 'excuse' ? 'border-brand text-brand' : 'border-transparent text-gray-400 hover:text-navy hover:border-gray-300' }}">
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                    Submit Excuse
+                </div>
+            </button>
+        </div>
 
-                <form wire:submit.prevent="submitCode" class="space-y-4">
-                    <div>
-                        <label for="code" class="sr-only">6-Digit Code</label>
-                        <input type="text" id="code" wire:model="attendanceCode"
-                            class="block w-full rounded-lg border border-gray-300 px-4 py-4 text-center text-3xl font-mono tracking-[0.5em] text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 uppercase placeholder:text-gray-300"
-                            placeholder="••••••" maxlength="6">
+        <div class="p-6 sm:p-8">
+            @if($activeTab === 'scanner')
+                <div class="flex flex-col items-center justify-center py-8">
+                    <div class="w-64 h-64 bg-gray-50 border-2 border-dashed border-gray-300 rounded-3xl flex flex-col items-center justify-center relative overflow-hidden mb-6 group">
+                        <div class="absolute inset-0 bg-brand/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <svg class="w-12 h-12 text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                        </svg>
+                        <p class="text-sm font-medium text-gray-500">Camera preview will appear here</p>
                     </div>
-                    <button type="submit"
-                        class="flex w-full justify-center rounded-lg bg-indigo-600 px-4 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all">
-                        Submit Code
+                    <button class="bg-brand text-white px-8 py-3 rounded-xl font-semibold shadow-sm hover:bg-brand-hover transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-brand">
+                        Start Scanner
                     </button>
-                </form>
-
-                <div class="relative my-8">
-                    <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                        <div class="w-full border-t border-gray-200"></div>
-                    </div>
-                    <div class="relative flex justify-center">
-                        <span class="bg-white px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Or Scan QR</span>
-                    </div>
+                    <p class="mt-4 text-sm text-gray-500 text-center max-w-sm">Point your camera at the QR code displayed by your instructor to log attendance.</p>
                 </div>
+            @endif
 
-                <button type="button"
-                    class="flex w-full items-center justify-center gap-3 rounded-lg border-2 border-gray-200 bg-white px-4 py-3.5 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 hover:border-gray-300 transition-all">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-gray-500">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75ZM6.75 16.5h.75v.75h-.75v-.75ZM16.5 6.75h.75v.75h-.75v-.75ZM13.5 13.5h.75v.75h-.75v-.75ZM13.5 19.5h.75v.75h-.75v-.75ZM19.5 13.5h.75v.75h-.75v-.75ZM19.5 19.5h.75v.75h-.75v-.75ZM16.5 16.5h.75v.75h-.75v-.75Z" />
-                    </svg>
-                    Open Camera Scanner
-                </button>
-            </div>
-
-        @elseif($activeTab === 'excuse')
-            <div class="mx-auto max-w-2xl rounded-xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-                <div class="mb-6">
-                    <h3 class="text-xl font-bold text-gray-900">Upload Excuse Slip</h3>
-                    <p class="mt-1 text-sm text-gray-500">Submit your medical certificate or excuse letter within 7 days of your absence.</p>
+            @if($activeTab === 'manual')
+                <div class="max-w-md mx-auto py-4">
+                    <form wire:submit="submitCode" class="space-y-5">
+                        <div>
+                            <label for="code" class="block text-sm font-semibold text-navy">Class Attendance Code</label>
+                            <div class="mt-2">
+                                <input type="text" wire:model="attendanceCode" id="code" class="block w-full rounded-xl border-0 py-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-brand sm:text-sm sm:leading-6 bg-gray-50" placeholder="e.g. A7X9-B2">
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">Enter the 6-character code provided by your instructor.</p>
+                        </div>
+                        <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-brand hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand transition-colors">
+                            Submit Code
+                        </button>
+                    </form>
                 </div>
+            @endif
 
-                <form wire:submit.prevent="submitExcuse" class="space-y-6">
-                    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                        <div>
-                            <label for="missed_date" class="block text-sm font-medium text-gray-700">Date of Absence</label>
-                            <input type="date" id="missed_date" wire:model="excuseDate" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-                        </div>
-                        <div>
-                            <label for="reason" class="block text-sm font-medium text-gray-700">Reason</label>
-                            <select id="reason" wire:model="excuseReason" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-                                <option value="">Select a reason...</option>
-                                <option value="medical">Medical / Sick</option>
-                                <option value="emergency">Family Emergency</option>
-                                <option value="school_event">School Activity</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Supporting Document</label>
-                        <div class="mt-2 flex justify-center rounded-lg border border-dashed border-gray-300 px-6 py-10 hover:bg-gray-50 transition-colors">
-                            <div class="text-center">
-                                <svg class="mx-auto h-12 w-12 text-gray-300" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                    <path fill-rule="evenodd" d="M1.5 6a2.25 2.25 0 012.25-2.25h16.5A2.25 2.25 0 0122.5 6v12a2.25 2.25 0 01-2.25 2.25H3.75A2.25 2.25 0 011.5 18V6zM3 16.06V18c0 .414.336.75.75.75h16.5A.75.75 0 0021 18v-1.94l-2.69-2.689a1.5 1.5 0 00-2.12 0l-.88.879.97.97a.75.75 0 11-1.06 1.06l-5.16-5.159a1.5 1.5 0 00-2.12 0L3 16.061zm10.125-7.81a1.125 1.125 0 112.25 0 1.125 1.125 0 01-2.25 0z" clip-rule="evenodd" />
-                                </svg>
-                                <div class="mt-4 flex text-sm leading-6 text-gray-600 justify-center">
-                                    <label for="file-upload" class="relative cursor-pointer rounded-md font-semibold text-indigo-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-indigo-600 focus-within:ring-offset-2 hover:text-indigo-500">
-                                        <span>Upload a file</span>
-                                        <input id="file-upload" name="file-upload" wire:model="excuseFile" type="file" class="sr-only">
-                                    </label>
-                                    <p class="pl-1">or drag and drop</p>
-                                </div>
-                                <p class="text-xs leading-5 text-gray-500">PNG, JPG, PDF up to 10MB</p>
-                                
-                                @if ($excuseFile)
-                                    <p class="mt-2 text-sm text-green-600 font-medium">File attached: {{ $excuseFile->getClientOriginalName() }}</p>
-                                @endif
+            @if($activeTab === 'excuse')
+                <div class="max-w-2xl mx-auto py-4">
+                    <form wire:submit="submitExcuse" class="space-y-6">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div>
+                                <label for="date" class="block text-sm font-semibold text-navy">Date of Absence</label>
+                                <input type="date" wire:model="excuseDate" id="date" class="mt-2 block w-full rounded-xl border-0 py-2.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-brand sm:text-sm sm:leading-6 bg-gray-50">
+                            </div>
+                            <div>
+                                <label for="file" class="block text-sm font-semibold text-navy">Supporting Document</label>
+                                <input type="file" wire:model="excuseFile" id="file" class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-brand/10 file:text-brand hover:file:bg-brand/20 transition-colors">
                             </div>
                         </div>
-                    </div>
+                        
+                        <div>
+                            <label for="reason" class="block text-sm font-semibold text-navy">Reason for Absence</label>
+                            <textarea wire:model="excuseReason" id="reason" rows="4" class="mt-2 block w-full rounded-xl border-0 py-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-brand sm:text-sm sm:leading-6 bg-gray-50" placeholder="Please provide a brief explanation..."></textarea>
+                        </div>
 
-                    <div class="flex justify-end pt-4">
-                        <button type="submit" class="w-full sm:w-auto rounded-md bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
-                            Submit Document
-                        </button>
-                    </div>
-                </form>
-            </div>
+                        <div class="flex justify-end">
+                            <button type="submit" class="py-2.5 px-6 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-brand hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand transition-colors">
+                                Submit for Review
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            @endif
+        </div>
+    </div>
 
-        @elseif($activeTab === 'history')
-            <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
-                <div class="border-b border-gray-200 px-6 py-5 flex items-center justify-between">
-                    <h3 class="text-lg font-bold text-gray-900">Recent Attendance Records</h3>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-300">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th scope="col" class="py-3.5 pl-6 pr-3 text-left text-sm font-semibold text-gray-900">Date</th>
-                                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Subject</th>
-                                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Time</th>
-                                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200 bg-white">
-                            <tr class="hover:bg-gray-50">
-                                <td class="whitespace-nowrap py-4 pl-6 pr-3 text-sm text-gray-900 font-medium">Oct 24, 2026</td>
-                                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">IT 311 - Web Systems</td>
-                                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">10:00 AM</td>
-                                <td class="whitespace-nowrap px-3 py-4 text-sm">
-                                    <span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Present</span>
-                                </td>
-                            </tr>
-                            <tr class="hover:bg-gray-50">
-                                <td class="whitespace-nowrap py-4 pl-6 pr-3 text-sm text-gray-900 font-medium">Oct 22, 2026</td>
-                                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">IT 311 - Web Systems</td>
-                                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">10:00 AM</td>
-                                <td class="whitespace-nowrap px-3 py-4 text-sm">
-                                    <span class="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/10">Absent</span>
-                                </td>
-                            </tr>
-                            <tr class="hover:bg-gray-50">
-                                <td class="whitespace-nowrap py-4 pl-6 pr-3 text-sm text-gray-900 font-medium">Oct 20, 2026</td>
-                                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">IT 311 - Web Systems</td>
-                                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">10:15 AM</td>
-                                <td class="whitespace-nowrap px-3 py-4 text-sm">
-                                    <span class="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">Late</span>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+    <div>
+        <h2 class="text-xl font-bold text-navy mb-4">Recent Records</h2>
+        <div class="bg-surface rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-100">
+                    <thead class="bg-gray-50/50">
+                        <tr>
+                            <th scope="col" class="py-4 pl-6 pr-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
+                            <th scope="col" class="px-3 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Subject</th>
+                            <th scope="col" class="px-3 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Time</th>
+                            <th scope="col" class="px-3 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 bg-white">
+                        <tr class="hover:bg-gray-50 transition-colors group">
+                            <td class="whitespace-nowrap py-4 pl-6 pr-3 text-sm text-navy font-semibold">Today</td>
+                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-600 group-hover:text-navy transition-colors">CS 314 - Software Engineering</td>
+                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">08:00 AM</td>
+                            <td class="whitespace-nowrap px-3 py-4 text-sm">
+                                <span class="inline-flex items-center rounded-lg bg-success/10 px-2.5 py-1 text-xs font-bold text-success ring-1 ring-inset ring-success/20">Present</span>
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-gray-50 transition-colors group">
+                            <td class="whitespace-nowrap py-4 pl-6 pr-3 text-sm text-navy font-semibold">Oct 21, 2026</td>
+                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-600 group-hover:text-navy transition-colors">MATH 202 - Discrete Math</td>
+                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">10:00 AM</td>
+                            <td class="whitespace-nowrap px-3 py-4 text-sm">
+                                <span class="inline-flex items-center rounded-lg bg-error/10 px-2.5 py-1 text-xs font-bold text-error ring-1 ring-inset ring-error/20">Absent</span>
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-gray-50 transition-colors group">
+                            <td class="whitespace-nowrap py-4 pl-6 pr-3 text-sm text-navy font-semibold">Oct 20, 2026</td>
+                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-600 group-hover:text-navy transition-colors">IT 311 - Web Systems</td>
+                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">10:15 AM</td>
+                            <td class="whitespace-nowrap px-3 py-4 text-sm">
+                                <span class="inline-flex items-center rounded-lg bg-warning/10 px-2.5 py-1 text-xs font-bold text-warning ring-1 ring-inset ring-warning/20">Late</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
-        @endif
+        </div>
     </div>
 </div>
 

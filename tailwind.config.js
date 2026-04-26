@@ -12,7 +12,23 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                sans: ['Instrument Sans', ...defaultTheme.fontFamily.sans],
+            },
+            colors: {
+                brand: {
+                    DEFAULT: 'var(--color-primary)',
+                    hover: 'var(--color-primary-hover)',
+                },
+                secondary: 'var(--color-secondary)',
+                info: 'var(--color-info)',
+                success: 'var(--color-success)',
+                warning: 'var(--color-warning)',
+                error: 'var(--color-error)',
+                
+                // Mappings for the layout structural classes
+                navy: 'var(--color-text-main)', 
+                base: 'var(--color-background)',
+                surface: 'var(--color-surface)',
             },
         },
     },
