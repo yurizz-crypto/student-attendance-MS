@@ -1,3 +1,29 @@
+<?php
+
+use Livewire\Component;
+
+new class extends Component {
+    // 1. Backend Logic
+    public string $activeTab = 'scanner'; 
+
+    public function setTab($tab)
+    {
+        $this->activeTab = $tab;
+    }
+
+    public function with(): array
+    {
+        return [
+            'stats' => [
+                'attendance_rate' => 85,
+                'present' => 34,
+                'absent' => 6,
+                'late' => 2,
+            ]
+        ];
+    }
+}; ?>
+
 <div class="space-y-6">
     <div class="flex items-center justify-between">
         <div>
