@@ -9,20 +9,16 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-// 1. Public Routes
 Route::get('/', function () {
     return view('welcome');
 });
 
-// 2. Shared Authenticated Routes (Dashboard & Profile)
 Route::middleware(['auth', 'verified'])->group(function () {
     
-    // The main dashboard (Acts as a traffic controller for all roles)
     Route::get('/dashboard', function () {
         return view('dashboard');
     })->name('dashboard');
 
-    // Profile Management
     Route::controller(ProfileController::class)->group(function () {
         Route::get('/profile', 'edit')->name('profile.edit');
         Route::patch('/profile', 'update')->name('profile.update');
@@ -31,7 +27,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 });
 
-// 3. Faculty Specific Routes
 Route::middleware(['auth', 'verified'])
     ->prefix('faculty')
     ->name('faculty.')
@@ -47,7 +42,6 @@ Route::middleware(['auth', 'verified'])
         
     });
 
-// 4. Admin Specific Routes
 Route::middleware(['auth', 'verified'])
     ->prefix('admin')
     ->name('admin.')
@@ -56,6 +50,11 @@ Route::middleware(['auth', 'verified'])
         Route::get('/users', function () {
             return view('admin.users');
         })->name('users');
+
+        // Add this route for Audit Logs
+        Route::get('/audit-logs', function () {
+            return view('admin.audit-logs');
+        })->name('audit-logs');
         
     });
 

@@ -86,7 +86,9 @@ new class extends Component {
                     </div>
                     <h3 class="text-xl font-bold text-navy mb-2">User Management</h3>
                     <p class="text-sm text-gray-500 mb-6 leading-relaxed">Add new faculty, manage student enrollment, and verify identities.</p>
-                    <x-primary-button class="w-full">Manage Users</x-primary-button>
+                    <a href="{{ route('admin.users') }}" wire:navigate class="block w-full">
+                        <x-primary-button class="w-full">Manage Users</x-primary-button>
+                    </a>
                 </div>
                 <div class="bg-surface border border-gray-100 p-8 rounded-3xl shadow-sm hover:shadow-md transition-all group">
                     <div class="w-14 h-14 bg-info/10 text-info rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
@@ -94,7 +96,9 @@ new class extends Component {
                     </div>
                     <h3 class="text-xl font-bold text-navy mb-2">Audit Trails</h3>
                     <p class="text-sm text-gray-500 mb-6 leading-relaxed">Review detailed logs of all security-sensitive actions and device bindings.</p>
-                    <x-secondary-button class="w-full">View Audit Logs</x-secondary-button>
+                    <a href="{{ route('admin.audit-logs') }}" wire:navigate class="block w-full">
+                        <x-secondary-button class="w-full">View Audit Logs</x-secondary-button>
+                    </a>
                 </div>
             </div>
         </div>
