@@ -28,27 +28,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 });
 
-Route::middleware(['auth', 'verified'])
+Route::middleware(['auth', 'verified', 'role:faculty'])
     ->prefix('faculty')
     ->name('faculty.')
     ->group(function () {
         
-        // This keeps your existing static classes page
         Route::get('/classes', function () {
             return view('faculty.classes');
         })->name('classes');
 
-        // Dynamically loads the specific class using the AttendanceController
         Route::get('/classes/{classSection}/attendance', [AttendanceController::class, 'show'])
             ->name('attendance.show');
 
-        // Handles the submission of the attendance form
         Route::post('/classes/{classSection}/attendance', [AttendanceController::class, 'store'])
             ->name('attendance.store');
             
     });
 
-Route::middleware(['auth', 'verified'])
+Route::middleware(['auth', 'verified', 'role:admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {

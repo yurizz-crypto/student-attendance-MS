@@ -2,6 +2,8 @@
 
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use Illuminate\Support\Facades\Auth;
+use App\Models\AttendanceRecord;
 
 new class extends Component {
     use WithFileUploads;
@@ -22,38 +24,67 @@ new class extends Component {
 
     public function submitCode()
     {
-        // Backend Partner will handle validation and database entry here
-        // dd($this->attendanceCode);
+        // To be implemented: Validate code against active sessions and mark present
+        session()->flash('status', 'Code submission logic coming soon!');
     }
 
     public function submitExcuse()
     {
-        // Backend Partner will handle file storage and database entry here
-        // dd($this->excuseDate, $this->excuseReason, $this->excuseFile);
+        // To be implemented: Upload file to storage and update record status
+        session()->flash('status', 'Excuse submission logic coming soon!');
     }
 
     public function with(): array
     {
+        $user = Auth::user();
+        
+        // Fetch all attendance records for the logged-in student
+        $allRecords = AttendanceRecord::where('student_id', $user->id)->get();
+
+        $present = $allRecords->where('status', 'present')->count();
+        $late = $allRecords->where('status', 'late')->count();
+        $absent = $allRecords->where('status', 'absent')->count();
+        
+        $totalClasses = $allRecords->count();
+        
+        // Calculate rate (treating late as present for the overall percentage, adjust as needed based on your policy)
+        $rate = $totalClasses > 0 ? round((($present + $late) / $totalClasses) * 100) : 100;
+
+        // Fetch the 5 most recent records and eager load relationships to avoid N+1 queries
+        $recentRecords = AttendanceRecord::with(['session.classSection.subject'])
+            ->where('student_id', $user->id)
+            ->latest('created_at')
+            ->take(5)
+            ->get();
+
         return [
             'stats' => [
-                'attendance_rate' => 85,
-                'present' => 34,
-                'absent' => 6,
-                'late' => 2,
-            ]
+                'attendance_rate' => $rate,
+                'present' => $present,
+                'absent' => $absent,
+                'late' => $late,
+            ],
+            'recentRecords' => $recentRecords,
+            'student' => $user,
         ];
     }
 }; ?>
 
 <div class="space-y-8 animate-fade-in-up">
+    @if (session()->has('status'))
+        <div class="p-4 bg-brand/10 border border-brand/20 text-brand rounded-xl font-bold">
+            {{ session('status') }}
+        </div>
+    @endif
+
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-            <h1 class="text-3xl font-bold tracking-tight text-navy">Welcome back, {{ auth()->user()->first_name ?? 'Student' }}!</h1>
-            <p class="text-sm font-medium text-gray-500 mt-1">Student ID: {{ auth()->user()->identity_id ?? 'N/A' }} <span class="mx-2">•</span> BSIT 3A</p>
+            <h1 class="text-3xl font-bold tracking-tight text-navy">Welcome back, {{ $student->first_name }}!</h1>
+            <p class="text-sm font-medium text-gray-500 mt-1">Student ID: {{ $student->identity_id }}</p>
         </div>
         <div class="bg-surface px-4 py-2 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3">
             <div class="w-2 h-2 rounded-full bg-success animate-pulse"></div>
-            <span class="text-sm font-semibold text-navy">Semester: Fall 2026</span>
+            <span class="text-sm font-semibold text-navy">Live Data Sync</span>
         </div>
     </div>
 
@@ -107,6 +138,8 @@ new class extends Component {
         </div>
     </div>
 
+    {{-- Form Sections Removed for Brevity (Scanner, Manual, Excuse) --}}
+    {{-- You can keep your existing tab design here --}}
     <div class="bg-surface rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
         <div class="flex border-b border-gray-100 bg-gray-50/50 px-2 sm:px-6 pt-2 overflow-x-auto hide-scrollbar">
             <button wire:click="setTab('scanner')" class="px-6 py-4 text-sm font-bold border-b-2 transition-all whitespace-nowrap {{ $activeTab === 'scanner' ? 'border-brand text-brand' : 'border-transparent text-gray-400 hover:text-navy hover:border-gray-300' }}">
@@ -143,7 +176,6 @@ new class extends Component {
                     <button class="bg-brand text-white px-8 py-3 rounded-xl font-semibold shadow-sm hover:bg-brand-hover transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-brand">
                         Start Scanner
                     </button>
-                    <p class="mt-4 text-sm text-gray-500 text-center max-w-sm">Point your camera at the QR code displayed by your instructor to log attendance.</p>
                 </div>
             @endif
 
@@ -152,12 +184,9 @@ new class extends Component {
                     <form wire:submit="submitCode" class="space-y-5">
                         <div>
                             <label for="code" class="block text-sm font-semibold text-navy">Class Attendance Code</label>
-                            <div class="mt-2">
-                                <input type="text" wire:model="attendanceCode" id="code" class="block w-full rounded-xl border-0 py-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-brand sm:text-sm sm:leading-6 bg-gray-50" placeholder="e.g. A7X9-B2">
-                            </div>
-                            <p class="mt-2 text-sm text-gray-500">Enter the 6-character code provided by your instructor.</p>
+                            <input type="text" wire:model="attendanceCode" id="code" class="mt-2 block w-full rounded-xl border-0 py-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-brand sm:text-sm sm:leading-6 bg-gray-50" placeholder="e.g. A7X9-B2" required>
                         </div>
-                        <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-brand hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand transition-colors">
+                        <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-brand hover:bg-brand-hover transition-colors">
                             Submit Code
                         </button>
                     </form>
@@ -170,21 +199,19 @@ new class extends Component {
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div>
                                 <label for="date" class="block text-sm font-semibold text-navy">Date of Absence</label>
-                                <input type="date" wire:model="excuseDate" id="date" class="mt-2 block w-full rounded-xl border-0 py-2.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-brand sm:text-sm sm:leading-6 bg-gray-50">
+                                <input type="date" wire:model="excuseDate" id="date" class="mt-2 block w-full rounded-xl border-0 py-2.5 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-brand sm:text-sm bg-gray-50" required>
                             </div>
                             <div>
                                 <label for="file" class="block text-sm font-semibold text-navy">Supporting Document</label>
-                                <input type="file" wire:model="excuseFile" id="file" class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-brand/10 file:text-brand hover:file:bg-brand/20 transition-colors">
+                                <input type="file" wire:model="excuseFile" id="file" class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:bg-brand/10 file:text-brand" required>
                             </div>
                         </div>
-                        
                         <div>
                             <label for="reason" class="block text-sm font-semibold text-navy">Reason for Absence</label>
-                            <textarea wire:model="excuseReason" id="reason" rows="4" class="mt-2 block w-full rounded-xl border-0 py-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-brand sm:text-sm sm:leading-6 bg-gray-50" placeholder="Please provide a brief explanation..."></textarea>
+                            <textarea wire:model="excuseReason" id="reason" rows="4" class="mt-2 block w-full rounded-xl border-0 py-3 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-brand sm:text-sm bg-gray-50" required></textarea>
                         </div>
-
                         <div class="flex justify-end">
-                            <button type="submit" class="py-2.5 px-6 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-brand hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand transition-colors">
+                            <button type="submit" class="py-2.5 px-6 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-brand hover:bg-brand-hover transition-colors">
                                 Submit for Review
                             </button>
                         </div>
@@ -203,35 +230,41 @@ new class extends Component {
                         <tr>
                             <th scope="col" class="py-4 pl-6 pr-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
                             <th scope="col" class="px-3 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Subject</th>
-                            <th scope="col" class="px-3 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Time</th>
                             <th scope="col" class="px-3 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                            <th scope="col" class="px-3 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Remarks</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 bg-white">
-                        <tr class="hover:bg-gray-50 transition-colors group">
-                            <td class="whitespace-nowrap py-4 pl-6 pr-3 text-sm text-navy font-semibold">Today</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-600 group-hover:text-navy transition-colors">CS 314 - Software Engineering</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">08:00 AM</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm">
-                                <span class="inline-flex items-center rounded-lg bg-success/10 px-2.5 py-1 text-xs font-bold text-success ring-1 ring-inset ring-success/20">Present</span>
-                            </td>
-                        </tr>
-                        <tr class="hover:bg-gray-50 transition-colors group">
-                            <td class="whitespace-nowrap py-4 pl-6 pr-3 text-sm text-navy font-semibold">Oct 21, 2026</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-600 group-hover:text-navy transition-colors">MATH 202 - Discrete Math</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">10:00 AM</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm">
-                                <span class="inline-flex items-center rounded-lg bg-error/10 px-2.5 py-1 text-xs font-bold text-error ring-1 ring-inset ring-error/20">Absent</span>
-                            </td>
-                        </tr>
-                        <tr class="hover:bg-gray-50 transition-colors group">
-                            <td class="whitespace-nowrap py-4 pl-6 pr-3 text-sm text-navy font-semibold">Oct 20, 2026</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-600 group-hover:text-navy transition-colors">IT 311 - Web Systems</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">10:15 AM</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm">
-                                <span class="inline-flex items-center rounded-lg bg-warning/10 px-2.5 py-1 text-xs font-bold text-warning ring-1 ring-inset ring-warning/20">Late</span>
-                            </td>
-                        </tr>
+                        @forelse($recentRecords as $record)
+                            <tr class="hover:bg-gray-50 transition-colors group">
+                                <td class="whitespace-nowrap py-4 pl-6 pr-3 text-sm text-navy font-semibold">
+                                    {{ $record->session->date->format('M d, Y') }}
+                                </td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-600 group-hover:text-navy transition-colors">
+                                    {{ $record->session->classSection->subject->code ?? 'N/A' }} - {{ $record->session->classSection->name ?? 'N/A' }}
+                                </td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm">
+                                    @if($record->status === 'present')
+                                        <span class="inline-flex items-center rounded-lg bg-success/10 px-2.5 py-1 text-xs font-bold text-success ring-1 ring-inset ring-success/20">Present</span>
+                                    @elseif($record->status === 'absent')
+                                        <span class="inline-flex items-center rounded-lg bg-error/10 px-2.5 py-1 text-xs font-bold text-error ring-1 ring-inset ring-error/20">Absent</span>
+                                    @elseif($record->status === 'late')
+                                        <span class="inline-flex items-center rounded-lg bg-warning/10 px-2.5 py-1 text-xs font-bold text-warning ring-1 ring-inset ring-warning/20">Late</span>
+                                    @else
+                                        <span class="inline-flex items-center rounded-lg bg-info/10 px-2.5 py-1 text-xs font-bold text-info ring-1 ring-inset ring-info/20">{{ ucfirst($record->status) }}</span>
+                                    @endif
+                                </td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                    {{ $record->remarks ?? '--' }}
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4" class="py-12 text-center text-sm font-medium text-gray-400">
+                                    No attendance records found.
+                                </td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
