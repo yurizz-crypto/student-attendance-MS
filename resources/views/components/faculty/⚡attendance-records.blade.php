@@ -1,31 +1,33 @@
 <?php
 use Livewire\Component;
+use App\Models\ClassSection;
 
 new class extends Component {
+    public ClassSection $classSection;
     public $search = '';
-    public $filterClass = '';
-    public $filterDate = '';
-
-    public function export()
-    {
-        // Backend logic for exporting to Excel/PDF will go here
-    }
 
     public function with(): array
     {
+        // Start with all enrolled students
+        $enrollments = $this->classSection->enrollments;
+
+        // Allow real-time Livewire searching
+        if (!empty($this->search)) {
+            $enrollments = $enrollments->filter(function ($enrollment) {
+                return stripos($enrollment->student->full_name, $this->search) !== false ||
+                       stripos($enrollment->student->identity_id, $this->search) !== false;
+            });
+        }
+
         return [
-            'records' => [
-                ['name' => 'Seth Laurence Bongo', 'id' => 'STUD-001', 'status' => 'Present', 'time' => '10:00 AM', 'avatar' => 'SB'],
-                ['name' => 'Yuri Salise', 'id' => 'STUD-002', 'status' => 'Present', 'time' => '10:02 AM', 'avatar' => 'YS'],
-                ['name' => 'John Doe', 'id' => 'STUD-003', 'status' => 'Absent', 'time' => '--', 'avatar' => 'JD'],
-                ['name' => 'Jane Smith', 'id' => 'STUD-004', 'status' => 'Late', 'time' => '10:15 AM', 'avatar' => 'JS'],
-            ],
-            'classes' => ['IT 311', 'CS 102', 'IT 312']
+            'enrollments' => $enrollments
         ];
     }
 }; ?>
 
-<div class="space-y-6">
+<form method="POST" action="{{ route('faculty.attendance.store', $classSection->id) }}" class="space-y-6">
+    @csrf
+
     <div class="bg-surface p-6 rounded-3xl border border-gray-100 shadow-sm">
         <div class="flex flex-col lg:flex-row gap-4 items-end">
             <div class="w-full lg:flex-1">
@@ -39,24 +41,16 @@ new class extends Component {
             </div>
 
             <div class="w-full sm:w-1/2 lg:w-48">
-                <x-input-label for="filterClass" :value="__('Class')" />
-                <select wire:model.live="filterClass" id="filterClass" class="block w-full rounded-xl border-gray-300 bg-gray-50 text-navy py-2.5 px-4 focus:border-brand focus:ring-brand shadow-sm transition-colors sm:text-sm">
-                    <option value="">All Classes</option>
-                    @foreach($classes as $class)
-                        <option value="{{ $class }}">{{ $class }}</option>
-                    @endforeach
-                </select>
+                <x-input-label for="attendance_date" :value="__('Attendance Date')" />
+                {{-- Date input required by the backend --}}
+                <x-text-input id="attendance_date" name="attendance_date" type="date" value="{{ date('Y-m-d') }}" max="{{ date('Y-m-d') }}" required class="block w-full" />
+                <x-input-error :messages="$errors->get('attendance_date')" class="mt-2" />
             </div>
 
-            <div class="w-full sm:w-1/2 lg:w-48">
-                <x-input-label for="filterDate" :value="__('Date')" />
-                <x-text-input wire:model.live="filterDate" id="filterDate" type="date" class="block w-full" />
-            </div>
-
-            <x-secondary-button wire:click="export" class="w-full lg:w-auto h-[46px] flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-                Export
-            </x-secondary-button>
+            <x-primary-button type="submit" class="w-full lg:w-auto h-[46px] flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                Save Attendance
+            </x-primary-button>
         </div>
     </div>
 
@@ -67,51 +61,47 @@ new class extends Component {
                     <tr>
                         <th scope="col" class="py-4 pl-6 pr-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Student</th>
                         <th scope="col" class="px-3 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">ID Number</th>
-                        <th scope="col" class="px-3 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Time In</th>
                         <th scope="col" class="px-3 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                        <th scope="col" class="relative py-4 pl-3 pr-6 text-right">
-                            <span class="sr-only">Actions</span>
-                        </th>
+                        <th scope="col" class="px-3 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Remarks (Optional)</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 bg-white">
-                    @forelse($records as $record)
+                    @forelse($enrollments as $index => $enrollment)
                         <tr class="hover:bg-gray-50/80 transition-colors group">
+                            
+                            {{-- We need a hidden field to pass the student's ID to the backend array --}}
+                            <input type="hidden" name="students[{{ $index }}][student_id]" value="{{ $enrollment->student_id }}">
+
                             <td class="whitespace-nowrap py-4 pl-6 pr-3">
                                 <div class="flex items-center gap-3">
-                                    <div class="w-9 h-9 rounded-xl bg-brand/10 text-brand flex items-center justify-center font-bold text-xs">
-                                        {{ $record['avatar'] }}
+                                    <div class="w-9 h-9 rounded-xl bg-brand/10 text-brand flex items-center justify-center font-bold text-xs uppercase">
+                                        {{ substr($enrollment->student->first_name, 0, 1) }}{{ substr($enrollment->student->last_name, 0, 1) }}
                                     </div>
                                     <div class="text-sm font-bold text-navy group-hover:text-brand transition-colors">
-                                        {{ $record['name'] }}
+                                        {{ $enrollment->student->full_name }}
                                     </div>
                                 </div>
                             </td>
                             <td class="whitespace-nowrap px-3 py-4 text-sm font-semibold text-gray-500">
-                                {{ $record['id'] }}
-                            </td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm font-semibold text-gray-500">
-                                {{ $record['time'] }}
+                                {{ $enrollment->student->identity_id }}
                             </td>
                             <td class="whitespace-nowrap px-3 py-4">
-                                @if($record['status'] === 'Present')
-                                    <span class="inline-flex items-center rounded-lg bg-success/10 px-2.5 py-1 text-xs font-bold text-success ring-1 ring-inset ring-success/20">Present</span>
-                                @elseif($record['status'] === 'Late')
-                                    <span class="inline-flex items-center rounded-lg bg-warning/10 px-2.5 py-1 text-xs font-bold text-warning ring-1 ring-inset ring-warning/20">Late</span>
-                                @else
-                                    <span class="inline-flex items-center rounded-lg bg-error/10 px-2.5 py-1 text-xs font-bold text-error ring-1 ring-inset ring-error/20">Absent</span>
-                                @endif
+                                {{-- Status Dropdown mapped to validation rules --}}
+                                <select name="students[{{ $index }}][status]" class="block w-full rounded-xl border-gray-300 bg-gray-50 text-navy py-2 px-3 focus:border-brand focus:ring-brand shadow-sm sm:text-sm font-bold">
+                                    <option value="present">Present</option>
+                                    <option value="late">Late</option>
+                                    <option value="absent">Absent</option>
+                                    <option value="excused">Excused</option>
+                                </select>
                             </td>
-                            <td class="whitespace-nowrap py-4 pl-3 pr-6 text-right text-sm font-medium">
-                                <button class="text-gray-400 hover:text-navy transition-colors">
-                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
-                                </button>
+                            <td class="whitespace-nowrap px-3 py-4">
+                                <x-text-input name="students[{{ $index }}][remarks]" type="text" class="block w-full py-1.5 text-sm" placeholder="Add note..." />
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="py-12 text-center">
-                                <p class="text-sm font-medium text-gray-400">No attendance records found.</p>
+                            <td colspan="4" class="py-12 text-center">
+                                <p class="text-sm font-medium text-gray-400">No students are currently enrolled in this class.</p>
                             </td>
                         </tr>
                     @endforelse
@@ -119,4 +109,4 @@ new class extends Component {
             </table>
         </div>
     </div>
-</div>
+</form>

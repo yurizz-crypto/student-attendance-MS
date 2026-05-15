@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Faculty\AttendanceController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -32,14 +33,19 @@ Route::middleware(['auth', 'verified'])
     ->name('faculty.')
     ->group(function () {
         
+        // This keeps your existing static classes page
         Route::get('/classes', function () {
             return view('faculty.classes');
         })->name('classes');
 
-        Route::get('/attendance', function () {
-            return view('faculty.attendance');
-        })->name('attendance');
-        
+        // Dynamically loads the specific class using the AttendanceController
+        Route::get('/classes/{classSection}/attendance', [AttendanceController::class, 'show'])
+            ->name('attendance.show');
+
+        // Handles the submission of the attendance form
+        Route::post('/classes/{classSection}/attendance', [AttendanceController::class, 'store'])
+            ->name('attendance.store');
+            
     });
 
 Route::middleware(['auth', 'verified'])
@@ -51,7 +57,6 @@ Route::middleware(['auth', 'verified'])
             return view('admin.users');
         })->name('users');
 
-        // Add this route for Audit Logs
         Route::get('/audit-logs', function () {
             return view('admin.audit-logs');
         })->name('audit-logs');
