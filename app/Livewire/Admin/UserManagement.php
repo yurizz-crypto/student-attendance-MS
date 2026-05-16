@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin;
 
 use App\Models\User;
+use App\Services\AuditService;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Illuminate\Support\Facades\Hash;
@@ -130,7 +131,7 @@ class UserManagement extends Component
             'role' => 'required|in:admin,faculty,student',
         ]);
 
-        User::create([
+        $user = User::create([
             'first_name' => $this->firstName,
             'middle_name' => $this->middleName,
             'last_name' => $this->lastName,
@@ -138,6 +139,16 @@ class UserManagement extends Component
             'email' => $this->email,
             'password' => Hash::make($this->password),
             'role' => $this->role,
+        ]);
+
+        // Log the creation
+        AuditService::logCreated($user, [
+            'first_name' => $user->first_name,
+            'middle_name' => $user->middle_name,
+            'last_name' => $user->last_name,
+            'identity_id' => $user->identity_id,
+            'email' => $user->email,
+            'role' => $user->role,
         ]);
 
         $this->dispatch('user-created', message: 'User created successfully');
@@ -159,6 +170,9 @@ class UserManagement extends Component
 
         $user = User::findOrFail($this->userId);
 
+        // Store original values for audit log
+        $originalValues = $user->getOriginal();
+
         $updateData = [
             'first_name' => $this->firstName,
             'middle_name' => $this->middleName,
@@ -174,6 +188,19 @@ class UserManagement extends Component
 
         $user->update($updateData);
 
+        // Log the update
+        $changedFields = [];
+        foreach ($updateData as $key => $value) {
+            if ($key !== 'password' && $originalValues[$key] !== $value) {
+                $changedFields[$key] = $value;
+            } elseif ($key === 'password' && $this->password) {
+                $changedFields[$key] = '***changed***';
+            }
+        }
+        if (!empty($changedFields)) {
+            AuditService::logUpdated($user, $originalValues, $changedFields);
+        }
+
         $this->dispatch('user-updated', message: 'User updated successfully');
         $this->closeEditModal();
     }
@@ -188,6 +215,9 @@ class UserManagement extends Component
             $this->closeDeleteModal();
             return;
         }
+
+        // Log the deletion before deleting
+        AuditService::logDeleted($user);
 
         $user->delete();
 
