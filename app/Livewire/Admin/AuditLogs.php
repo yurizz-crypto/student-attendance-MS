@@ -3,7 +3,7 @@
 namespace App\Livewire\Admin;
 
 use App\Models\AuditLog;
-use App\Services\AuditService;
+use App\Models\User;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -12,9 +12,13 @@ class AuditLogs extends Component
     use WithPagination;
 
     public $search = '';
+
     public $filterAction = '';
+
     public $filterUser = '';
+
     public $sortField = 'created_at';
+
     public $sortDirection = 'desc';
 
     public function updatedSearch()
@@ -69,8 +73,8 @@ class AuditLogs extends Component
     {
         return view('livewire.admin.audit-logs', [
             'logs' => $this->getAuditLogs(),
-            'users' => \App\Models\User::orderBy('first_name')->get(),
-            'actions' => ['created', 'updated', 'deleted', 'viewed', 'login', 'logout'],
+            'users' => User::orderBy('first_name')->get(),
+            'actions' => ['created', 'updated', 'deleted', 'viewed', 'login', 'logout', 'excuse_submitted', 'excuse_processed'],
         ]);
     }
 }

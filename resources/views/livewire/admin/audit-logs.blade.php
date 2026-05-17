@@ -26,6 +26,8 @@
                     <option value="viewed">Viewed</option>
                     <option value="login">Login</option>
                     <option value="logout">Logout</option>
+                    <option value="excuse_submitted">Excuse Submitted</option>
+                    <option value="excuse_processed">Excuse Processed</option>
                 </select>
 
                 <select

@@ -2,10 +2,11 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Casts\AsCollection;
+use Illuminate\Support\Str;
 
 class AuditLog extends Model
 {
@@ -59,7 +60,9 @@ class AuditLog extends Model
             'logout' => 'Logged Out',
             'exported' => 'Exported',
             'imported' => 'Imported',
-            default => ucfirst($this->action),
+            'excuse_submitted' => 'Excuse Submitted',
+            'excuse_processed' => 'Excuse Processed',
+            default => str_replace('_', ' ', Str::title($this->action)),
         };
     }
 
@@ -75,6 +78,8 @@ class AuditLog extends Model
             'viewed' => 'warning',
             'login' => 'success',
             'logout' => 'warning',
+            'excuse_submitted' => 'info',
+            'excuse_processed' => 'success',
             default => 'gray',
         };
     }

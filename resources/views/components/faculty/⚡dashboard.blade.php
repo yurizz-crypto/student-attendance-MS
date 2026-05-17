@@ -2,6 +2,7 @@
 
 use Livewire\Component;
 use Illuminate\Support\Str;
+use App\Services\AuditService;
 
 new class extends Component {
     // State for QR Generator
@@ -56,6 +57,14 @@ new class extends Component {
         }
 
         $this->reviewingExcuse->student->notify(new \App\Notifications\ExcuseProcessedNotification($this->reviewingExcuse));
+        
+        AuditService::log(
+            'excuse_processed',
+            \App\Models\Excuse::class,
+            $this->reviewingExcuse->id,
+            ['status' => $status, 'old_status' => $oldStatus],
+            'Faculty processed excuse: ' . $status
+        );
 
         session()->flash('status', 'Excuse has been ' . $status . '.');
         $this->closeReview();

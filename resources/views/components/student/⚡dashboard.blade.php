@@ -125,6 +125,14 @@ new class extends Component {
         if ($faculty) {
             $faculty->notify(new \App\Notifications\ExcuseSubmittedNotification($excuse));
         }
+        
+        AuditService::log(
+            'excuse_submitted',
+            Excuse::class,
+            $excuse->id,
+            ['reason' => $this->excuseReason],
+            Auth::user()->first_name . ' ' . Auth::user()->last_name . ' submitted an excuse letter'
+        );
 
         $this->reset(['excuseClassId', 'excuseSessionId', 'excuseReason', 'excuseFile']);
         session()->flash('status', 'Excuse submitted successfully and is pending review.');
