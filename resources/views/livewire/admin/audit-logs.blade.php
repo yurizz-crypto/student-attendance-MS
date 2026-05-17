@@ -39,6 +39,16 @@
                         <option value="{{ $user->id }}">{{ $user->first_name }} {{ $user->last_name }}</option>
                     @endforeach
                 </select>
+                
+                <button
+                    wire:click="exportCsv"
+                    class="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 transition-colors flex items-center gap-2 whitespace-nowrap"
+                >
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Export CSV
+                </button>
             </div>
         </div>
     </div>
@@ -67,10 +77,20 @@
                 </thead>
                 <tbody class="divide-y divide-gray-200">
                     @forelse($logs as $log)
-                        <tr class="hover:bg-gray-50/50 transition-colors">
+                        @php
+                            $isSuspicious = $log->status === 'failed' || $log->action === 'deleted' || str_contains(strtolower($log->description), 'failed');
+                        @endphp
+                        <tr class="hover:bg-gray-50/50 transition-colors {{ $isSuspicious ? 'bg-error/5 border-l-4 border-error' : '' }}">
                             <td class="px-6 py-4 text-gray-700">
-                                <div class="text-sm font-medium">{{ $log->created_at->format('M d, Y') }}</div>
-                                <div class="text-xs text-gray-500">{{ $log->created_at->format('H:i:s') }}</div>
+                                <div class="text-sm font-medium flex items-center gap-2">
+                                    @if($isSuspicious)
+                                        <svg class="w-4 h-4 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor" title="Suspicious Activity Detected">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                        </svg>
+                                    @endif
+                                    {{ $log->created_at->format('M d, Y') }}
+                                </div>
+                                <div class="text-xs text-gray-500 {{ $isSuspicious ? 'ml-6' : '' }}">{{ $log->created_at->format('H:i:s') }}</div>
                             </td>
                             <td class="px-6 py-4">
                                 <div class="flex items-center gap-2">
