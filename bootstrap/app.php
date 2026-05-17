@@ -4,6 +4,7 @@ use App\Http\Middleware\EnsureOtpIsVerified;
 use App\Http\Middleware\LogAccess;
 use App\Http\Middleware\PermissionMiddleware;
 use App\Http\Middleware\RoleMiddleware; // Add this import
+use App\Http\Middleware\TrackPerformance;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -18,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->web(append: [
             AuthenticateSession::class,
+            TrackPerformance::class,
         ]);
 
         $middleware->alias([

@@ -1,220 +1,308 @@
-<div class="space-y-8">
+<div class="space-y-8" x-data="dashboardCharts({
+    registrations: {{ json_encode($chartDataRegistrations) }},
+    transactions: {{ json_encode($chartDataTransactions) }}
+})">
+    <!-- Header & Filters -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-navy">Dashboard Overview</h2>
+            <p class="text-sm text-gray-500">System performance and activity summary.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <select wire:model.live="dateRange" class="rounded-lg border-gray-300 text-sm focus:ring-brand focus:border-brand">
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+                <option value="year">This Year</option>
+            </select>
+            
+            <button wire:click="loadData" class="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200" title="Refresh Data">
+                <svg wire:loading.class="animate-spin" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <a href="{{ route('admin.users') }}" class="flex items-center gap-3 p-4 bg-brand/5 rounded-lg border border-brand/10 hover:bg-brand/10 transition-colors group">
+            <div class="p-2 bg-brand text-white rounded-lg group-hover:scale-110 transition-transform">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+            </div>
+            <span class="font-medium text-brand text-sm">Add User</span>
+        </a>
+        <a href="{{ route('admin.audit-logs') }}" class="flex items-center gap-3 p-4 bg-info/5 rounded-lg border border-info/10 hover:bg-info/10 transition-colors group">
+            <div class="p-2 bg-info text-white rounded-lg group-hover:scale-110 transition-transform">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+            </div>
+            <span class="font-medium text-info text-sm">View Logs</span>
+        </a>
+        <button class="flex items-center gap-3 p-4 bg-warning/5 rounded-lg border border-warning/10 hover:bg-warning/10 transition-colors group text-left">
+            <div class="p-2 bg-warning text-white rounded-lg group-hover:scale-110 transition-transform">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+            </div>
+            <span class="font-medium text-warning-dark text-sm">Backup DB</span>
+        </button>
+        <button class="flex items-center gap-3 p-4 bg-success/5 rounded-lg border border-success/10 hover:bg-success/10 transition-colors group text-left">
+            <div class="p-2 bg-success text-white rounded-lg group-hover:scale-110 transition-transform">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </div>
+            <span class="font-medium text-success-dark text-sm">Clear Cache</span>
+        </button>
+    </div>
+
     <!-- Key Statistics Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <!-- Total Users Card -->
-        <div class="bg-surface rounded-lg border border-gray-200 shadow-sm p-6 hover:shadow-md transition-shadow">
-            <div class="flex items-start justify-between">
+        <div class="bg-surface rounded-lg border border-gray-200 shadow-sm p-6">
+            <div class="flex justify-between items-start">
                 <div>
-                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Total Users</p>
-                    <p class="text-3xl font-bold text-navy">{{ number_format($stats['total_users']) }}</p>
-                    <p class="text-xs text-gray-500 mt-2">Active users in system</p>
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wide">Total Users</p>
+                    <p class="text-3xl font-bold text-navy mt-2">{{ number_format($stats['total_users']) }}</p>
                 </div>
-                <div class="w-12 h-12 rounded-lg bg-brand/10 flex items-center justify-center">
-                    <svg class="w-6 h-6 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.856-1.487M15 10a3 3 0 11-6 0 3 3 0 016 0z" />
+                <div class="p-2 bg-brand/10 rounded-lg text-brand">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 20 20" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.856-1.487M15 10a3 3 0 11-6 0 3 3 0 016 0zm-7-4a6 6 0 110-12 6 6 0 010 12z" /></svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-surface rounded-lg border border-gray-200 shadow-sm p-6 relative overflow-hidden">
+            <div class="flex justify-between items-start relative z-10">
+                <div>
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wide">Active Now</p>
+                    <p class="text-3xl font-bold text-success mt-2">
+                        <span class="inline-block w-3 h-3 bg-success rounded-full animate-pulse mr-2 mb-1"></span>
+                        {{ number_format($systemHealth['active_now']) }}
+                    </p>
+                </div>
+                <div class="p-2 text-black">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 011.06 0z" />
                     </svg>
                 </div>
             </div>
         </div>
 
-        <!-- Faculty Users Card -->
-        <div class="bg-surface rounded-lg border border-gray-200 shadow-sm p-6 hover:shadow-md transition-shadow">
-            <div class="flex items-start justify-between">
+        <div class="bg-surface rounded-lg border border-gray-200 shadow-sm p-6">
+            <div class="flex justify-between items-start">
                 <div>
-                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Faculty</p>
-                    <p class="text-3xl font-bold text-navy">{{ number_format($stats['faculty_users']) }}</p>
-                    <p class="text-xs text-gray-500 mt-2">Teaching staff</p>
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wide">Avg Load Time</p>
+                    <p class="text-3xl font-bold text-navy mt-2">{{ $systemHealth['avg_response_time'] }}</p>
                 </div>
-                <div class="w-12 h-12 rounded-lg bg-info/10 flex items-center justify-center">
-                    <svg class="w-6 h-6 text-info" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                    </svg>
+                <div class="p-2 bg-info/10 rounded-lg text-info">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                 </div>
             </div>
         </div>
 
-        <!-- Student Users Card -->
-        <div class="bg-surface rounded-lg border border-gray-200 shadow-sm p-6 hover:shadow-md transition-shadow">
-            <div class="flex items-start justify-between">
+        <div class="bg-surface rounded-lg border border-gray-200 shadow-sm p-6">
+            <div class="flex justify-between items-start">
                 <div>
-                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Students</p>
-                    <p class="text-3xl font-bold text-navy">{{ number_format($stats['student_users']) }}</p>
-                    <p class="text-xs text-gray-500 mt-2">Enrolled students</p>
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wide">Error Rate</p>
+                    <p class="text-3xl font-bold {{ (float)$systemHealth['error_rate'] > 1 ? 'text-error' : 'text-navy' }} mt-2">{{ $systemHealth['error_rate'] }}</p>
                 </div>
-                <div class="w-12 h-12 rounded-lg bg-success/10 flex items-center justify-center">
-                    <svg class="w-6 h-6 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C6.5 6.253 2 10.998 2 17.25c0 5.25 3.07 9.386 7.5 11.386m0-13c5.5 0 10 4.745 10 10.25 0 5.25-3.07 9.386-7.5 11.386m0 0A21.75 21.75 0 0015.75 23.75" />
-                    </svg>
-                </div>
-            </div>
-        </div>
-
-        <!-- Classes Card -->
-        <div class="bg-surface rounded-lg border border-gray-200 shadow-sm p-6 hover:shadow-md transition-shadow">
-            <div class="flex items-start justify-between">
-                <div>
-                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Classes</p>
-                    <p class="text-3xl font-bold text-navy">{{ number_format($stats['total_classes']) }}</p>
-                    <p class="text-xs text-gray-500 mt-2">Active classes</p>
-                </div>
-                <div class="w-12 h-12 rounded-lg bg-warning/10 flex items-center justify-center">
-                    <svg class="w-6 h-6 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C6.5 6.253 2 10.998 2 17.25c0 5.25 3.07 9.386 7.5 11.386m0-13c5.5 0 10 4.745 10 10.25 0 5.25-3.07 9.386-7.5 11.386" />
-                    </svg>
+                <div class="p-2 bg-error/10 rounded-lg text-error">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Audit Activity Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <!-- Today's Activity -->
+    <!-- Charts Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- New Registrations Chart -->
         <div class="bg-surface rounded-lg border border-gray-200 shadow-sm p-6">
-            <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-4">Today's Activity</p>
-            <div class="space-y-3">
-                <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-700">Total Actions</span>
-                    <span class="text-lg font-bold text-navy">{{ $stats['today_logs'] }}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-700">Created</span>
-                    <span class="text-lg font-semibold text-success">{{ $stats['created_actions'] ?? 0 }}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-700">Updated</span>
-                    <span class="text-lg font-semibold text-info">{{ $stats['updated_actions'] ?? 0 }}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-700">Deleted</span>
-                    <span class="text-lg font-semibold text-error">{{ $stats['deleted_actions'] ?? 0 }}</span>
-                </div>
+            <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4">New Registrations</h3>
+            <div class="relative h-64">
+                <canvas id="registrationsChart"></canvas>
             </div>
         </div>
 
-        <!-- User Creation Stats -->
+        <!-- Transactions Chart -->
         <div class="bg-surface rounded-lg border border-gray-200 shadow-sm p-6">
-            <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-4">New Users</p>
-            <div class="space-y-3">
-                <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-700">Today</span>
-                    <span class="text-lg font-bold text-navy">{{ $userStats['created_today'] }}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-700">This Week</span>
-                    <span class="text-lg font-bold text-navy">{{ $userStats['created_this_week'] }}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-700">This Month</span>
-                    <span class="text-lg font-bold text-navy">{{ $userStats['created_this_month'] }}</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- System Health -->
-        <div class="bg-surface rounded-lg border border-gray-200 shadow-sm p-6">
-            <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-4">System Status</p>
-            <div class="space-y-3">
-                <div class="flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-success"></span>
-                    <span class="text-sm text-gray-700">Database</span>
-                    <span class="ml-auto text-xs font-semibold text-success">Connected</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-success"></span>
-                    <span class="text-sm text-gray-700">Audit Logs</span>
-                    <span class="ml-auto text-xs font-semibold text-success">Active</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-success"></span>
-                    <span class="text-sm text-gray-700">Total Logs</span>
-                    <span class="ml-auto text-xs font-semibold text-navy">{{ number_format($stats['total_logs']) }}</span>
-                </div>
+            <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4">System Activity</h3>
+            <div class="relative h-64">
+                <canvas id="transactionsChart"></canvas>
             </div>
         </div>
     </div>
 
-    <!-- Recent Activity Log -->
-    <div class="bg-surface rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50/50">
-            <h3 class="font-bold text-navy">Recent System Activity</h3>
-            <p class="text-xs text-gray-500 mt-1">Latest 10 actions in the system</p>
+    <!-- Bottom Section: System Health & Activity Feed -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- System Health Details -->
+        <div class="bg-surface rounded-lg border border-gray-200 shadow-sm p-6">
+            <h3 class="font-bold text-navy mb-4">System Health</h3>
+            
+            <div class="space-y-4">
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600">Storage Usage</span>
+                        <span class="font-semibold text-gray-900">{{ $systemHealth['storage_usage'] }}</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-brand h-2 rounded-full" style="width: {{ $systemHealth['storage_usage'] }}"></div>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-gray-100 flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-gray-100 rounded text-gray-500">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500">Database Size</p>
+                            <p class="text-sm font-bold text-gray-900">{{ $systemHealth['database_size'] }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-gray-100 flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-gray-100 rounded text-gray-500">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" /></svg>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500">Server Uptime</p>
+                            <p class="text-sm font-bold text-gray-900">{{ $systemHealth['uptime'] }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead>
-                    <tr class="border-b border-gray-200 bg-gray-50/50">
-                        <th class="px-6 py-3 text-left font-semibold text-gray-700">User</th>
-                        <th class="px-6 py-3 text-left font-semibold text-gray-700">Action</th>
-                        <th class="px-6 py-3 text-left font-semibold text-gray-700">Model</th>
-                        <th class="px-6 py-3 text-left font-semibold text-gray-700">Description</th>
-                        <th class="px-6 py-3 text-left font-semibold text-gray-700">Time</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200">
-                    @forelse($recentLogs as $log)
-                        <tr class="hover:bg-gray-50/50 transition-colors">
-                            <td class="px-6 py-4">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-8 h-8 rounded-lg bg-brand/10 text-brand flex items-center justify-center font-bold text-xs">
-                                        @if($log->user)
-                                            {{ strtoupper(substr($log->user->first_name, 0, 1) . substr($log->user->last_name, 0, 1)) }}
-                                        @else
-                                            SYS
-                                        @endif
+        <!-- Recent Activity Feed -->
+        <div class="lg:col-span-2 bg-surface rounded-lg border border-gray-200 shadow-sm overflow-hidden flex flex-col h-full">
+            <div class="px-6 py-4 border-b border-gray-200 bg-gray-50/50 flex justify-between items-center">
+                <h3 class="font-bold text-navy">Recent Live Activity</h3>
+                <span class="flex h-3 w-3 relative">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-brand"></span>
+                </span>
+            </div>
+
+            <div class="flex-1 overflow-x-auto">
+                <table class="w-full text-sm">
+                    <tbody class="divide-y divide-gray-100">
+                        @forelse($recentLogs as $log)
+                            <tr class="hover:bg-gray-50 transition-colors">
+                                <td class="px-6 py-3 whitespace-nowrap">
+                                    <span class="text-xs text-gray-500">{{ $log->created_at->diffForHumans() }}</span>
+                                </td>
+                                <td class="px-6 py-3">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-6 h-6 rounded-full bg-brand/10 text-brand flex items-center justify-center font-bold text-[10px]">
+                                            {{ $log->user ? substr($log->user->first_name, 0, 1) : 'S' }}
+                                        </div>
+                                        <span class="font-medium text-gray-900">{{ $log->user?->first_name ?? 'System' }}</span>
                                     </div>
-                                    <span class="text-gray-700">
-                                        {{ $log->user?->first_name ?? 'System' }}
+                                </td>
+                                <td class="px-6 py-3">
+                                    <span class="inline-flex px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide
+                                        {{ $log->action === 'deleted' || $log->status === 'failed' ? 'bg-error/10 text-error' : 'bg-gray-100 text-gray-600' }}
+                                    ">
+                                        {{ $log->action }}
                                     </span>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4">
-                                <span class="inline-flex px-2 py-1 rounded-lg text-xs font-semibold
-                                    @switch($log->action)
-                                        @case('created')
-                                            bg-success/10 text-success
-                                            @break
-                                        @case('updated')
-                                            bg-info/10 text-info
-                                            @break
-                                        @case('deleted')
-                                            bg-error/10 text-error
-                                            @break
-                                        @default
-                                            bg-gray-100 text-gray-700
-                                    @endswitch
-                                ">
-                                    {{ $log->getActionLabel() }}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 text-gray-700">
-                                {{ $log->getModelDisplayName() }}
-                            </td>
-                            <td class="px-6 py-4 text-gray-600 text-sm">
-                                {{ $log->description ?? '-' }}
-                            </td>
-                            <td class="px-6 py-4 text-gray-600 whitespace-nowrap">
-                                <span class="text-xs">{{ $log->created_at->diffForHumans() }}</span>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="5" class="px-6 py-12 text-center text-gray-500">
-                                <svg class="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <p class="font-medium">No activity yet</p>
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-
-        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50/50 text-center">
-            <a href="{{ route('admin.audit-logs') }}" class="text-sm font-semibold text-brand hover:text-brand-hover transition-colors">
-                View All Activity →
-            </a>
+                                </td>
+                                <td class="px-6 py-3 text-gray-600 truncate max-w-[200px]" title="{{ $log->description }}">
+                                    {{ $log->description }}
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4" class="px-6 py-8 text-center text-gray-500">No recent activity found.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+            <div class="px-6 py-3 border-t border-gray-200 bg-gray-50/50 text-center">
+                <a href="{{ route('admin.audit-logs') }}" class="text-xs font-semibold text-brand hover:text-brand-hover">
+                    View All Audit Logs →
+                </a>
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('dashboardCharts', ({ registrations, transactions }) => ({
+            regChart: null,
+            transChart: null,
+
+            init() {
+                this.initCharts();
+
+                // Listen for Livewire updates
+                window.addEventListener('update-charts', (event) => {
+                    this.updateCharts(event.detail.registrations, event.detail.transactions);
+                });
+            },
+
+            initCharts() {
+                const regCtx = document.getElementById('registrationsChart').getContext('2d');
+                this.regChart = new Chart(regCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: registrations.labels,
+                        datasets: [{
+                            label: 'New Users',
+                            data: registrations.data,
+                            backgroundColor: '#4F46E5', // brand color
+                            borderRadius: 4,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                    }
+                });
+
+                const transCtx = document.getElementById('transactionsChart').getContext('2d');
+                this.transChart = new Chart(transCtx, {
+                    type: 'line',
+                    data: {
+                        labels: transactions.labels,
+                        datasets: [{
+                            label: 'System Actions',
+                            data: transactions.data,
+                            borderColor: '#10B981', // success color
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                    }
+                });
+            },
+
+            updateCharts(newRegs, newTrans) {
+                if (this.regChart) {
+                    this.regChart.data.labels = newRegs.labels;
+                    this.regChart.data.datasets[0].data = newRegs.data;
+                    this.regChart.update();
+                }
+                if (this.transChart) {
+                    this.transChart.data.labels = newTrans.labels;
+                    this.transChart.data.datasets[0].data = newTrans.data;
+                    this.transChart.update();
+                }
+            }
+        }));
+    });
+</script>

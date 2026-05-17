@@ -25,6 +25,7 @@ use Illuminate\Notifications\Notifiable;
     'permissions',
     'otp_code',
     'otp_expires_at',
+    'last_activity',
 ])]
 
 #[Hidden(['password', 'remember_token', 'otp_code'])]
@@ -41,6 +42,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'password' => 'hashed',
             'permissions' => 'array',
             'otp_expires_at' => 'datetime',
+            'last_activity' => 'datetime',
         ];
     }
 
