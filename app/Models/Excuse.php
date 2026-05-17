@@ -4,18 +4,17 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class AttendanceSession extends Model
+class Excuse extends Model
 {
     protected $fillable = [
+        'student_id',
         'class_section_id',
+        'attendance_session_id',
         'date',
-        'start_time',
-        'end_time',
+        'reason',
+        'file_path',
         'status',
-        'attendance_code',
-        'qr_code_data',
     ];
 
     protected function casts(): array
@@ -25,13 +24,18 @@ class AttendanceSession extends Model
         ];
     }
 
+    public function student(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'student_id');
+    }
+
     public function classSection(): BelongsTo
     {
         return $this->belongsTo(ClassSection::class);
     }
 
-    public function records(): HasMany
+    public function session(): BelongsTo
     {
-        return $this->hasMany(AttendanceRecord::class);
+        return $this->belongsTo(AttendanceSession::class, 'attendance_session_id');
     }
 }

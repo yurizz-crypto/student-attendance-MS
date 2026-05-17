@@ -11,6 +11,7 @@ class ClassSection extends Model
     protected $fillable = [
         'subject_id',
         'faculty_id',
+        'semester_id',
         'name',
         'schedule_details',
     ];
@@ -33,5 +34,19 @@ class ClassSection extends Model
     public function attendanceSessions(): HasMany
     {
         return $this->hasMany(AttendanceSession::class);
+    }
+
+    public function semester(): BelongsTo
+    {
+        return $this->belongsTo(Semester::class);
+    }
+
+    public function getIsActiveAttribute(): bool
+    {
+        if (! $this->semester_id) {
+            return true;
+        }
+
+        return $this->semester ? $this->semester->is_active : true;
     }
 }

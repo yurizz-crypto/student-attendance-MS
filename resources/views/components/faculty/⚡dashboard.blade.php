@@ -7,32 +7,155 @@ new class extends Component {
     // State for QR Generator
     public $selectedClass = '';
     public $generatedCode = null;
-    public $expiryTime = 2; // 2 hours default
+    public $expiryTime = 5; // 5 minutes default
+
+    public $reviewingExcuseId = null;
+    public $reviewingExcuse = null;
+
+    public function reviewExcuse($id)
+    {
+        $this->reviewingExcuseId = $id;
+        $this->reviewingExcuse = \App\Models\Excuse::with('student', 'classSection.subject', 'session')->find($id);
+    }
+
+    public function closeReview()
+    {
+        $this->reset(['reviewingExcuseId', 'reviewingExcuse']);
+    }
+
+    public function processExcuse($status)
+    {
+        if (!$this->reviewingExcuse) return;
+
+        $oldStatus = $this->reviewingExcuse->status;
+        
+        if ($oldStatus === $status) {
+            $this->closeReview();
+            return;
+        }
+
+        $this->reviewingExcuse->update(['status' => $status]);
+
+        $record = \App\Models\AttendanceRecord::where('attendance_session_id', $this->reviewingExcuse->attendance_session_id)
+            ->where('student_id', $this->reviewingExcuse->student_id)
+            ->first();
+        
+        if ($record) {
+            if ($status === 'approved') {
+                $record->update([
+                    'status' => 'excused',
+                    'remarks' => 'Excuse approved: ' . $this->reviewingExcuse->reason
+                ]);
+            } elseif ($oldStatus === 'approved' && ($status === 'rejected' || $status === 'pending')) {
+                // Revert to absent
+                $record->update([
+                    'status' => 'absent',
+                    'remarks' => 'Excuse revoked. Originally marked absent.'
+                ]);
+            }
+        }
+
+        session()->flash('status', 'Excuse has been ' . $status . '.');
+        $this->closeReview();
+    }
 
     public function generateCode()
     {
-        // Require a class to be selected first
         $this->validate(['selectedClass' => 'required']);
         
-        // Backend Partner will generate the actual DB record here.
-        // For now, we mock a random 6-digit code.
-        $this->generatedCode = strtoupper(Str::random(6));
+        $class = \App\Models\ClassSection::where('faculty_id', auth()->id())->findOrFail($this->selectedClass);
+
+        // Check if an open session already exists today for this class
+        $session = \App\Models\AttendanceSession::where('class_section_id', $class->id)
+            ->whereDate('date', today())
+            ->where('status', 'open')
+            ->first();
+
+        if (!$session) {
+            $code = strtoupper(\Illuminate\Support\Str::random(6));
+            $session = \App\Models\AttendanceSession::create([
+                'class_section_id' => $class->id,
+                'date' => today(),
+                'status' => 'open',
+                'attendance_code' => $code,
+                'start_time' => now()->format('H:i:s'),
+                // Expiry time is informative here, actual closure happens manually or via scheduler
+                'end_time' => now()->addMinutes((int)$this->expiryTime)->format('H:i:s'),
+            ]);
+            
+            $qrData = implode('|', [
+                $session->id,
+                $class->id,
+                today()->format('Y-m-d'),
+                auth()->id(),
+            ]);
+            $session->update(['qr_code_data' => $qrData]);
+        }
+
+        $this->generatedCode = $session->attendance_code;
     }
 
     public function with(): array
     {
+        $facultyId = auth()->id();
+        
+        // Get faculty's classes, filtered by active semester
+        $myClasses = \App\Models\ClassSection::where('faculty_id', $facultyId)
+            ->whereHas('semester', function($q) {
+                $q->where('is_active', true);
+            })
+            ->with('subject', 'semester')
+            ->get();
+            
+        $classIds = $myClasses->pluck('id')->toArray();
+        
+        // Today's classes count
+        $todayClassesCount = \App\Models\AttendanceSession::whereIn('class_section_id', $classIds)
+            ->whereDate('date', today())
+            ->count();
+            
+        // Active students count (unique students enrolled in faculty's classes)
+        $activeStudentsCount = \App\Models\Enrollment::whereIn('class_section_id', $classIds)
+            ->where('status', 'active')
+            ->distinct('student_id')
+            ->count('student_id');
+            
+        // Pending excuses count
+        $pendingExcuses = \App\Models\Excuse::whereIn('class_section_id', $classIds)
+            ->where('status', 'pending')
+            ->with(['student', 'classSection.subject', 'session'])
+            ->get();
+            
+        $pendingExcusesCount = $pendingExcuses->count();
+            
+        // Avg attendance rate
+        $totalRecords = \App\Models\AttendanceRecord::whereHas('session', function($q) use ($classIds) {
+                $q->whereIn('class_section_id', $classIds);
+            })->count();
+            
+        $presentRecords = \App\Models\AttendanceRecord::whereHas('session', function($q) use ($classIds) {
+                $q->whereIn('class_section_id', $classIds);
+            })
+            ->whereIn('status', ['present', 'late'])
+            ->count();
+            
+        $avgAttendance = $totalRecords > 0 ? round(($presentRecords / $totalRecords) * 100) : 100;
+
+        // Format my classes for the dropdown
+        $formattedClasses = $myClasses->mapWithKeys(function($class) {
+            $name = ($class->subject ? $class->subject->code : '') . ' - ' . $class->name;
+            return [$class->id => $name];
+        })->toArray();
+
         return [
             'stats' => [
-                'today_classes' => 3,
-                'active_students' => 142,
-                'pending_excuses' => 5,
-                'avg_attendance' => 89,
+                'today_classes' => $todayClassesCount,
+                'active_students' => $activeStudentsCount,
+                'pending_excuses' => $pendingExcusesCount,
+                'avg_attendance' => $avgAttendance,
             ],
-            'my_classes' => [
-                'IT 311 - Web Systems',
-                'CS 102 - Data Structures',
-                'IT 312 - Software Engineering'
-            ]
+            'my_classes' => $formattedClasses,
+            'pending_excuses_list' => $pendingExcuses
         ];
     }
 }; ?>
@@ -119,8 +242,8 @@ new class extends Component {
                             <label for="class" class="block text-sm font-semibold text-navy">Select Class</label>
                             <select wire:model="selectedClass" id="class" class="mt-2 block w-full rounded-xl border-0 py-3 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-brand sm:text-sm sm:leading-6 bg-gray-50 font-medium">
                                 <option value="">-- Choose a scheduled class --</option>
-                                @foreach($my_classes as $class)
-                                    <option value="{{ $class }}">{{ $class }}</option>
+                                @foreach($my_classes as $id => $name)
+                                    <option value="{{ $id }}">{{ $name }}</option>
                                 @endforeach
                             </select>
                             @error('selectedClass') <span class="text-error text-xs font-medium mt-1">{{ $message }}</span> @enderror
@@ -129,10 +252,10 @@ new class extends Component {
                         <div>
                             <label for="expiry" class="block text-sm font-semibold text-navy">Code Validity Duration</label>
                             <select wire:model="expiryTime" id="expiry" class="mt-2 block w-full rounded-xl border-0 py-3 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-brand sm:text-sm sm:leading-6 bg-gray-50 font-medium">
-                                <option value="1">1 Hour</option>
-                                <option value="2">2 Hours</option>
-                                <option value="3">3 Hours</option>
-                                <option value="24">24 Hours</option>
+                                <option value="5">5 Minutes</option>
+                                <option value="10">10 Minutes</option>
+                                <option value="15">15 Minutes</option>
+                                <option value="30">30 Minutes</option>
                             </select>
                         </div>
 
@@ -179,39 +302,97 @@ new class extends Component {
             </div>
             
             <div class="flex-1 p-4 space-y-3 overflow-y-auto">
+                @forelse($pending_excuses_list as $excuse)
                 <div class="flex items-center justify-between p-4 border border-gray-100 rounded-2xl hover:bg-gray-50 transition-colors group">
                     <div>
-                        <p class="text-sm font-bold text-navy">Seth Laurence Bongo</p>
-                        <p class="text-xs font-medium text-gray-500 mt-0.5">IT 311 • Medical Certificate</p>
+                        <p class="text-sm font-bold text-navy">{{ $excuse->student->first_name }} {{ $excuse->student->last_name }}</p>
+                        <p class="text-xs font-medium text-gray-500 mt-0.5">{{ $excuse->classSection->subject->code ?? 'Unknown' }} • {{ Str::limit($excuse->reason ?? 'No reason provided', 50) }}</p>
                     </div>
-                    <button class="text-brand hover:text-brand-hover text-sm font-bold bg-brand/5 px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
+                    <button wire:click="reviewExcuse({{ $excuse->id }})" class="text-brand hover:text-brand-hover text-sm font-bold bg-brand/5 px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
                         Review
                     </button>
                 </div>
-                
-                <div class="flex items-center justify-between p-4 border border-gray-100 rounded-2xl hover:bg-gray-50 transition-colors group">
-                    <div>
-                        <p class="text-sm font-bold text-navy">John Doe</p>
-                        <p class="text-xs font-medium text-gray-500 mt-0.5">CS 102 • School Activity</p>
-                    </div>
-                    <button class="text-brand hover:text-brand-hover text-sm font-bold bg-brand/5 px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
-                        Review
-                    </button>
-                </div>
-
-                @if($stats['pending_excuses'] === 0)
+                @empty
                     <div class="text-center py-8">
                         <p class="text-sm text-gray-500 font-medium">No pending excuses.</p>
                     </div>
-                @endif
+                @endforelse
             </div>
 
             <div class="p-4 border-t border-gray-100 bg-gray-50/50">
-                <button class="w-full text-center text-sm font-bold text-gray-600 hover:text-brand transition-colors">
+                <a href="{{ route('faculty.excuses') }}" class="block w-full text-center text-sm font-bold text-gray-600 hover:text-brand transition-colors">
                     View All Excuses &rarr;
-                </button>
+                </a>
             </div>
         </div>
         
     </div>
+
+    <!-- Excuse Review Modal -->
+    @if($reviewingExcuse)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy/50 backdrop-blur-sm animate-fade-in">
+            <div class="bg-white rounded-3xl w-full max-w-lg shadow-xl overflow-hidden animate-fade-in-up">
+                <div class="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-navy">Review Excuse</h3>
+                    <button wire:click="closeReview" class="text-gray-400 hover:text-gray-600 transition-colors">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+                <div class="p-6 sm:p-8 space-y-6">
+                    <div>
+                        <p class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Student Details</p>
+                        <p class="text-lg font-bold text-navy">{{ $reviewingExcuse->student->first_name }} {{ $reviewingExcuse->student->last_name }}</p>
+                        <p class="text-sm font-medium text-gray-500">{{ $reviewingExcuse->student->identity_id ?? 'N/A' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Class & Session</p>
+                        <p class="text-base font-bold text-navy">{{ $reviewingExcuse->classSection->subject->code ?? 'Unknown' }} - {{ $reviewingExcuse->classSection->name ?? 'Unknown' }}</p>
+                        <p class="text-sm font-medium text-gray-500">{{ $reviewingExcuse->session->date->format('M d, Y') ?? 'N/A' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Reason</p>
+                        <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                            <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ $reviewingExcuse->reason }}</p>
+                        </div>
+                    </div>
+                    @if($reviewingExcuse->file_path)
+                    <div>
+                        <p class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Supporting Document</p>
+                        <div class="flex gap-2">
+                            <a href="{{ Storage::url($reviewingExcuse->file_path) }}" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 bg-brand/10 text-brand rounded-xl text-sm font-bold hover:bg-brand/20 transition-colors">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                View File
+                            </a>
+                            <a href="{{ Storage::url($reviewingExcuse->file_path) }}" download class="inline-flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm font-bold hover:bg-gray-50 transition-colors">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                Download
+                            </a>
+                        </div>
+                    </div>
+                    @endif
+                </div>
+                <div class="p-6 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row gap-3 justify-end items-center">
+                    @if($reviewingExcuse->status !== 'pending')
+                        <span class="text-sm font-medium text-gray-500 mr-auto">Current Status: <strong class="capitalize">{{ $reviewingExcuse->status }}</strong></span>
+                    @endif
+                    
+                    <button wire:click="closeReview" class="px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-bold hover:bg-gray-100 transition-colors sm:mr-2">
+                        Close
+                    </button>
+
+                    @if($reviewingExcuse->status !== 'rejected')
+                    <button wire:click="processExcuse('rejected')" class="px-6 py-2.5 rounded-xl border border-error text-error font-bold hover:bg-error/10 transition-colors">
+                        {{ $reviewingExcuse->status === 'approved' ? 'Revoke & Reject' : 'Reject' }}
+                    </button>
+                    @endif
+
+                    @if($reviewingExcuse->status !== 'approved')
+                    <button wire:click="processExcuse('approved')" class="px-6 py-2.5 rounded-xl border border-transparent bg-brand text-white font-bold hover:bg-brand-hover transition-colors shadow-sm">
+                        Approve
+                    </button>
+                    @endif
+                </div>
+            </div>
+        </div>
+    @endif
 </div>

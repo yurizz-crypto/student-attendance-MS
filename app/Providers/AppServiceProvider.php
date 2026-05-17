@@ -2,8 +2,12 @@
 
 namespace App\Providers;
 
+use App\Models\AttendanceSession;
+use App\Models\ClassSection;
 use App\Models\User;
+use App\Policies\FacultyPolicy;
 use App\Policies\UserPolicy;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -31,6 +35,10 @@ class AppServiceProvider extends ServiceProvider
     protected function registerPolicies(): void
     {
         // User policy
-        \Illuminate\Support\Facades\Gate::policy(User::class, UserPolicy::class);
+        Gate::policy(User::class, UserPolicy::class);
+
+        // Faculty policies
+        Gate::policy(ClassSection::class, FacultyPolicy::class);
+        Gate::policy(AttendanceSession::class, FacultyPolicy::class);
     }
 }

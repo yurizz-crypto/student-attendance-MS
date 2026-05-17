@@ -23,8 +23,11 @@
                             {{ __('My Classes') }}
                         </x-nav-link>
                         {{-- Redirects to classes, but stays highlighted when viewing any attendance page --}}
-                        <x-nav-link :href="route('faculty.classes')" :active="request()->routeIs('faculty.attendance.*')">
+                        <x-nav-link :href="route('faculty.attendance')" :active="request()->routeIs('faculty.attendance.*') || request()->routeIs('faculty.attendance')">
                             {{ __('Attendance Records') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('faculty.excuses')" :active="request()->routeIs('faculty.excuses')">
+                            {{ __('Excuses') }}
                         </x-nav-link>
                     @endif
 
@@ -91,8 +94,11 @@
                     {{ __('My Classes') }}
                 </x-responsive-nav-link>
                 {{-- Redirects to classes, but stays highlighted when viewing any attendance page --}}
-                <x-responsive-nav-link :href="route('faculty.classes')" :active="request()->routeIs('faculty.attendance.*')">
+                <x-responsive-nav-link :href="route('faculty.attendance')" :active="request()->routeIs('faculty.attendance.*') || request()->routeIs('faculty.attendance')">
                     {{ __('Attendance Records') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('faculty.excuses')" :active="request()->routeIs('faculty.excuses')">
+                    {{ __('Excuses') }}
                 </x-responsive-nav-link>
             @endif
 
