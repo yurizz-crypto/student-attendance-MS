@@ -92,7 +92,12 @@ new class extends Component {
             'Faculty processed excuse: ' . $status
         );
 
-        session()->flash('status', 'Excuse has been ' . $status . '.');
+        $label = match ($status) {
+            'approved' => 'Excuse Approved',
+            'rejected' => 'Excuse Rejected',
+            default    => 'Excuse Updated',
+        };
+        $this->dispatch('swal:success', title: $label, message: 'Excuse has been ' . $status . '.');
         $this->closeReview();
     }
 

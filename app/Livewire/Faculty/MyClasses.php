@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Faculty;
 
+use App\Exceptions\StaleRecordException;
 use App\Models\ClassSection;
 use App\Models\Enrollment;
 use App\Models\Semester;
@@ -55,6 +56,14 @@ class MyClasses extends Component
     public $importFile;
 
     public $deleteConfirmClassId = null;
+
+    /** @var int Captured lock_version for optimistic locking */
+    public $lockVersion = 0;
+
+    public $lockConflict = false;
+
+    /** @var array<string, mixed> Cascade info for delete modal */
+    public $cascadeInfo = [];
 
     public $filterSemesterId = '';
 
@@ -140,7 +149,10 @@ class MyClasses extends Component
             ->first();
 
         if (! $activeSemester) {
-            $this->addError('general', 'You must create an active semester first before importing classes.');
+            $this->dispatch('swal:error',
+                title: 'No Active Semester',
+                message: 'You must create and activate a semester first before importing classes.'
+            );
 
             return;
         }
@@ -149,6 +161,31 @@ class MyClasses extends Component
         $file = fopen($filePath, 'r');
         $headers = fgetcsv($file);
 
+        // Guard: empty file
+        if (empty($headers)) {
+            fclose($file);
+            $this->dispatch('swal:error', title: 'Invalid File', message: 'The CSV file is empty. Please upload a file with the correct format.');
+
+            return;
+        }
+
+        // Normalize headers (trim whitespace, lowercase)
+        $headers = array_map(fn ($h) => strtolower(trim($h)), $headers);
+
+        // Guard: wrong headers
+        $requiredColumns = ['subject_name', 'class_name', 'student_identity_id'];
+        $missingColumns = array_diff($requiredColumns, $headers);
+
+        if (! empty($missingColumns)) {
+            fclose($file);
+            $this->dispatch('swal:error',
+                title: 'Wrong CSV Format',
+                message: 'Missing required columns: '.implode(', ', $missingColumns).'. Expected: subject_name, class_name, schedule_details, student_identity_id.'
+            );
+
+            return;
+        }
+
         $classesCreated = 0;
         $studentsEnrolled = 0;
         $skippedRows = 0;
@@ -156,14 +193,14 @@ class MyClasses extends Component
         // Group rows by class to process unique classes first, then enrollments
         $classesData = [];
 
-        while (($row = fgetcsv($file)) !== false) {
-            if (count($row) !== count($headers)) {
+        while (($rawRow = fgetcsv($file)) !== false) {
+            if (count($rawRow) !== count($headers)) {
                 $skippedRows++;
 
                 continue;
             }
 
-            $data = array_combine($headers, $row);
+            $data = array_combine($headers, $rawRow);
 
             if (empty($data['subject_name']) || empty($data['class_name']) || empty($data['student_identity_id'])) {
                 $skippedRows++;
@@ -186,6 +223,16 @@ class MyClasses extends Component
         }
 
         fclose($file);
+
+        // Guard: no processable data rows
+        if (empty($classesData)) {
+            $this->dispatch('swal:warning',
+                title: 'Nothing to Import',
+                message: "All {$skippedRows} rows were skipped due to missing required fields. Check your CSV file."
+            );
+
+            return;
+        }
 
         foreach ($classesData as $classGroup) {
             // Auto-create or find subject
@@ -296,7 +343,7 @@ class MyClasses extends Component
         $this->dispatch('swal:success', title: 'Success', message: 'Semester marked as done!');
     }
 
-    public function openEditModal($classId)
+    public function openEditModal($classId): void
     {
         $class = ClassSection::where('faculty_id', Auth::id())->findOrFail($classId);
 
@@ -304,6 +351,8 @@ class MyClasses extends Component
         $this->subjectName = $class->subject ? $class->subject->name : '';
         $this->className = $class->name;
         $this->scheduleDetails = $class->schedule_details ?? '';
+        $this->lockVersion = $class->lock_version ?? 0;
+        $this->lockConflict = false;
 
         $this->showEditModal = true;
     }
@@ -323,16 +372,22 @@ class MyClasses extends Component
         }
     }
 
-    public function openDeleteModal($classId)
+    public function openDeleteModal($classId): void
     {
+        $class = ClassSection::withCount('enrollments')->where('faculty_id', Auth::id())->findOrFail($classId);
         $this->deleteConfirmClassId = $classId;
+        $this->cascadeInfo = [
+            'name' => $class->name,
+            'enrollments' => $class->enrollments_count,
+        ];
         $this->showDeleteModal = true;
     }
 
-    public function closeDeleteModal()
+    public function closeDeleteModal(): void
     {
         $this->showDeleteModal = false;
         $this->deleteConfirmClassId = null;
+        $this->cascadeInfo = [];
     }
 
     public function openEnrollModal($classId)
@@ -489,15 +544,26 @@ class MyClasses extends Component
         $this->dispatch('swal:success', title: 'Success', message: 'Class created successfully!');
     }
 
-    public function update()
+    public function update(): void
     {
-        $validated = $this->validate([
+        $this->validate([
             'subjectName' => 'required|string|max:255',
             'className' => 'required|string|max:255',
             'scheduleDetails' => 'required|string|max:255',
         ]);
 
         $class = ClassSection::where('faculty_id', Auth::id())->findOrFail($this->classId);
+
+        // Optimistic locking check
+        try {
+            $class->checkLockVersion($this->lockVersion);
+        } catch (StaleRecordException $e) {
+            $this->lockConflict = true;
+            $this->dispatch('swal:error', title: 'Edit Conflict', message: 'This class was modified by another user. Please close and reopen the edit form.');
+
+            return;
+        }
+
         $original = $class->getAttributes();
 
         // Auto-create or find subject
@@ -512,7 +578,8 @@ class MyClasses extends Component
             'schedule_details' => $this->scheduleDetails,
         ]);
 
-        // Log the update
+        $class->incrementLockVersion();
+
         $changes = [];
         if ($original['subject_id'] != $subject->id) {
             $changes['subject_id'] = ['old' => $original['subject_id'], 'new' => $subject->id];
@@ -530,7 +597,7 @@ class MyClasses extends Component
 
         $this->closeEditModal();
         $this->resetPage();
-        $this->dispatch('swal:success', title: 'Success', message: 'Class updated successfully!');
+        $this->dispatch('swal:success', title: 'Class Updated', message: 'Class has been updated successfully.');
     }
 
     public function delete()
@@ -551,12 +618,14 @@ class MyClasses extends Component
         $this->dispatch('swal:success', title: 'Success', message: 'Class deleted successfully!');
     }
 
-    public function resetForm()
+    public function resetForm(): void
     {
         $this->classId = null;
         $this->subjectName = '';
         $this->className = '';
         $this->scheduleDetails = '';
+        $this->lockVersion = 0;
+        $this->lockConflict = false;
         $this->resetErrorBag();
     }
 

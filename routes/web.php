@@ -106,6 +106,10 @@ Route::prefix('admin')
             Route::get('/audit-logs', function () {
                 return view('admin.audit-logs');
             })->name('audit-logs');
+
+            Route::get('/trash', function () {
+                return view('admin.trash');
+            })->name('trash');
         });
 
     });

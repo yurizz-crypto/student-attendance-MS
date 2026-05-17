@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AuditLog;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Request;
@@ -70,7 +71,7 @@ class AuditService
     }
 
     /**
-     * Log a model deletion.
+     * Log a model deletion (soft delete).
      */
     public static function logDeleted(Model $model): AuditLog
     {
@@ -84,13 +85,55 @@ class AuditService
     }
 
     /**
+     * Log a model restore from soft delete.
+     */
+    public static function logRestored(Model $model): AuditLog
+    {
+        return self::log(
+            'restored',
+            get_class($model),
+            $model->id,
+            ['restored' => $model->getAttributes()],
+            sprintf('%s #%d restored from trash', class_basename($model), $model->id)
+        );
+    }
+
+    /**
+     * Log a permanent (force) deletion.
+     */
+    public static function logForceDeleted(Model $model): AuditLog
+    {
+        return self::log(
+            'force_deleted',
+            get_class($model),
+            $model->id,
+            ['permanently_deleted' => $model->getAttributes()],
+            sprintf('%s #%d permanently deleted', class_basename($model), $model->id)
+        );
+    }
+
+    /**
+     * Log a bulk deletion with a warning note.
+     */
+    public static function logBulkDeleted(string $modelType, array $ids, string $warning = ''): AuditLog
+    {
+        return self::log(
+            'bulk_deleted',
+            $modelType,
+            null,
+            ['deleted_ids' => $ids, 'count' => count($ids), 'warning' => $warning],
+            sprintf('Bulk deleted %d %s records%s', count($ids), class_basename($modelType), $warning ? " — {$warning}" : '')
+        );
+    }
+
+    /**
      * Log user login.
      */
     public static function logLogin(int $userId): AuditLog
     {
         return self::log(
             'login',
-            \App\Models\User::class,
+            User::class,
             $userId,
             null,
             'User logged in'
@@ -104,7 +147,7 @@ class AuditService
     {
         return self::log(
             'logout',
-            \App\Models\User::class,
+            User::class,
             $userId,
             null,
             'User logged out'
@@ -164,10 +207,11 @@ class AuditService
             'total_logs' => AuditLog::count(),
             'today_logs' => AuditLog::whereDate('created_at', today())->count(),
             'week_logs' => AuditLog::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])->count(),
-            'user_actions' => AuditLog::where('model_type', \App\Models\User::class)->count(),
+            'user_actions' => AuditLog::where('model_type', User::class)->count(),
             'created_actions' => AuditLog::where('action', 'created')->count(),
             'updated_actions' => AuditLog::where('action', 'updated')->count(),
-            'deleted_actions' => AuditLog::where('action', 'deleted')->count(),
+            'deleted_actions' => AuditLog::whereIn('action', ['deleted', 'bulk_deleted', 'force_deleted'])->count(),
+            'restored_actions' => AuditLog::where('action', 'restored')->count(),
             'failed_actions' => AuditLog::where('status', 'failed')->count(),
         ];
     }

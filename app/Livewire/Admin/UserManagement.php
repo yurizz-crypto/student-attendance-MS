@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Exceptions\StaleRecordException;
 use App\Exports\UserImportErrorExport;
 use App\Imports\UsersImport;
 use App\Models\User;
@@ -24,6 +25,8 @@ class UserManagement extends Component
 
     public $sortDirection = 'desc';
 
+    public $showTrashed = false;
+
     // Form fields
     public $userId = null;
 
@@ -44,6 +47,11 @@ class UserManagement extends Component
     public $status = 'active';
 
     public $permissions = [];
+
+    /** @var int Captured lock_version for optimistic locking */
+    public $lockVersion = 0;
+
+    public $lockConflict = false;
 
     // Modal states
     public $showAddModal = false;
@@ -68,17 +76,26 @@ class UserManagement extends Component
 
     public $deleteConfirmUserId = null;
 
-    public function updatedSearchTerm()
+    /** @var array<string, mixed> Info about cascading effects for the user being deleted */
+    public $cascadeInfo = [];
+
+    public function updatedSearchTerm(): void
     {
         $this->resetPage();
     }
 
-    public function updatedFilterRole()
+    public function updatedFilterRole(): void
     {
         $this->resetPage();
     }
 
-    public function sort($field)
+    public function toggleTrashed(): void
+    {
+        $this->showTrashed = ! $this->showTrashed;
+        $this->resetPage();
+    }
+
+    public function sort($field): void
     {
         if ($this->sortField === $field) {
             $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
@@ -90,37 +107,39 @@ class UserManagement extends Component
 
     public function getUsers()
     {
-        return User::when($this->searchTerm, function ($query) {
-            $search = $this->searchTerm;
+        $query = User::when($this->showTrashed, fn ($q) => $q->onlyTrashed())
+            ->when($this->searchTerm, function ($query) {
+                $search = $this->searchTerm;
 
-            return $query->where(function ($q) use ($search) {
-                $q->where('first_name', 'like', "%{$search}%")
-                    ->orWhere('middle_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('identity_id', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
-            });
-        })
+                return $query->where(function ($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('middle_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhere('identity_id', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
             ->when($this->filterRole, function ($query) {
                 return $query->where('role', $this->filterRole);
             })
-            ->orderBy($this->sortField, $this->sortDirection)
-            ->paginate(10);
+            ->orderBy($this->sortField, $this->sortDirection);
+
+        return $query->paginate(10);
     }
 
-    public function openAddModal()
+    public function openAddModal(): void
     {
         $this->resetForm();
         $this->showAddModal = true;
     }
 
-    public function closeAddModal()
+    public function closeAddModal(): void
     {
         $this->showAddModal = false;
         $this->resetForm();
     }
 
-    public function openEditModal($userId)
+    public function openEditModal($userId): void
     {
         $user = User::findOrFail($userId);
 
@@ -134,29 +153,39 @@ class UserManagement extends Component
         $this->role = $user->role;
         $this->status = $user->status ?? 'active';
         $this->permissions = $user->permissions ?? [];
+        $this->lockVersion = $user->lock_version ?? 0;
+        $this->lockConflict = false;
 
         $this->showEditModal = true;
     }
 
-    public function closeEditModal()
+    public function closeEditModal(): void
     {
         $this->showEditModal = false;
         $this->resetForm();
     }
 
-    public function openDeleteModal($userId)
+    public function openDeleteModal($userId): void
     {
+        $user = User::withCount(['enrollments', 'attendanceRecords'])->findOrFail($userId);
+
         $this->deleteConfirmUserId = $userId;
+        $this->cascadeInfo = [
+            'name' => $user->first_name.' '.$user->last_name,
+            'enrollments' => $user->enrollments_count,
+            'attendance_records' => $user->attendance_records_count,
+        ];
         $this->showDeleteModal = true;
     }
 
-    public function closeDeleteModal()
+    public function closeDeleteModal(): void
     {
         $this->showDeleteModal = false;
         $this->deleteConfirmUserId = null;
+        $this->cascadeInfo = [];
     }
 
-    public function openImportModal()
+    public function openImportModal(): void
     {
         $this->importFile = null;
         $this->importStep = 1;
@@ -167,7 +196,7 @@ class UserManagement extends Component
         $this->showImportModal = true;
     }
 
-    public function closeImportModal()
+    public function closeImportModal(): void
     {
         $this->showImportModal = false;
         $this->importFile = null;
@@ -176,32 +205,67 @@ class UserManagement extends Component
         $this->invalidRows = [];
     }
 
-    public function previewImport()
+    public function previewImport(): void
     {
         $this->validate([
-            'importFile' => 'required|file|mimes:csv,txt,xlsx,xls|max:5120', // Max 5MB
+            'importFile' => 'required|file|mimes:csv,txt,xlsx,xls|max:5120',
         ]);
 
         $rows = Excel::toArray(new UsersImport, $this->importFile)[0];
+
+        // Abort immediately if the file has no rows or completely wrong headers
+        if (empty($rows)) {
+            $this->dispatch('swal:error', title: 'Invalid File', message: 'The file is empty. Please upload a file with the correct format.');
+
+            return;
+        }
+
+        $requiredColumns = ['first_name', 'last_name', 'identity_id', 'email', 'role'];
+        $fileColumns = array_keys($rows[0]);
+        $missingColumns = array_diff($requiredColumns, $fileColumns);
+
+        if (! empty($missingColumns)) {
+            $this->dispatch('swal:error',
+                title: 'Wrong File Format',
+                message: 'Missing required columns: '.implode(', ', $missingColumns).'. Expected: first_name, middle_name, last_name, identity_id, email, password, role.'
+            );
+
+            return;
+        }
 
         $this->validRows = [];
         $this->invalidRows = [];
 
         foreach ($rows as $index => $row) {
-            $rowIndex = $index + 2; // +1 for 0-index, +1 for header
+            $rowIndex = $index + 2;
 
-            // Check if required fields exist
-            if (empty($row['first_name']) || empty($row['last_name']) || empty($row['email']) || empty($row['role'])) {
+            if (empty($row['first_name']) || empty($row['last_name']) || empty($row['email']) || empty($row['role']) || empty($row['identity_id'])) {
+                $missing = [];
+                if (empty($row['first_name'])) {
+                    $missing[] = 'first_name';
+                }
+                if (empty($row['last_name'])) {
+                    $missing[] = 'last_name';
+                }
+                if (empty($row['identity_id'])) {
+                    $missing[] = 'identity_id';
+                }
+                if (empty($row['email'])) {
+                    $missing[] = 'email';
+                }
+                if (empty($row['role'])) {
+                    $missing[] = 'role';
+                }
+
                 $this->invalidRows[] = [
                     'row_index' => $rowIndex,
                     'data' => $row,
-                    'error' => 'Missing required fields (first_name, last_name, email, role).',
+                    'error' => 'Missing required fields: '.implode(', ', $missing).'. Expected columns: first_name, last_name, identity_id, email, role.',
                 ];
 
                 continue;
             }
 
-            // Check role validity
             if (! in_array(strtolower($row['role']), ['admin', 'faculty', 'student'])) {
                 $this->invalidRows[] = [
                     'row_index' => $rowIndex,
@@ -212,13 +276,11 @@ class UserManagement extends Component
                 continue;
             }
 
-            // Check duplicates in DB
             $exists = User::where('email', $row['email'])
                 ->orWhere(function ($query) use ($row) {
                     if (! empty($row['identity_id'])) {
                         $query->where('identity_id', $row['identity_id']);
                     } else {
-                        // This condition will always be false, preventing empty string matches
                         $query->whereRaw('1 = 0');
                     }
                 })->exists();
@@ -233,7 +295,6 @@ class UserManagement extends Component
                 continue;
             }
 
-            // Check duplicates within the file itself
             $duplicateInFile = collect($this->validRows)->contains(function ($validRow) use ($row) {
                 return $validRow['email'] === $row['email'] || (! empty($row['identity_id']) && $validRow['identity_id'] === $row['identity_id']);
             });
@@ -252,10 +313,10 @@ class UserManagement extends Component
         }
 
         $this->totalValidRows = count($this->validRows);
-        $this->importStep = 2; // Move to preview step
+        $this->importStep = 2;
     }
 
-    public function processImportChunk()
+    public function processImportChunk(): void
     {
         if ($this->importProgress >= $this->totalValidRows) {
             $this->finalizeImport();
@@ -267,11 +328,19 @@ class UserManagement extends Component
         $chunk = array_slice($this->validRows, $this->importProgress, $chunkSize);
 
         foreach ($chunk as $row) {
+            // Guard: identity_id must not be null (DB NOT NULL constraint)
+            if (empty($row['identity_id'])) {
+                $this->dispatch('swal:error', title: 'Import Error', message: "Row skipped: identity_id is missing for user {$row['email']}.");
+                $this->importProgress++;
+
+                continue;
+            }
+
             User::create([
                 'first_name' => $row['first_name'],
                 'middle_name' => $row['middle_name'] ?? null,
                 'last_name' => $row['last_name'],
-                'identity_id' => $row['identity_id'] ?? null,
+                'identity_id' => $row['identity_id'],
                 'email' => $row['email'],
                 'password' => Hash::make($row['password'] ?? 'password123'),
                 'role' => strtolower($row['role']),
@@ -280,7 +349,7 @@ class UserManagement extends Component
         }
     }
 
-    public function finalizeImport()
+    public function finalizeImport(): void
     {
         AuditService::log(
             'imported',
@@ -301,9 +370,9 @@ class UserManagement extends Component
         return Excel::download(new UserImportErrorExport($this->invalidRows), 'import_errors_'.now()->format('Ymd_His').'.csv', \Maatwebsite\Excel\Excel::CSV);
     }
 
-    public function store()
+    public function store(): void
     {
-        $validated = $this->validate([
+        $this->validate([
             'firstName' => 'required|string|max:255',
             'middleName' => 'nullable|string|max:255',
             'lastName' => 'required|string|max:255',
@@ -327,7 +396,6 @@ class UserManagement extends Component
             'permissions' => $this->permissions,
         ]);
 
-        // Log the creation
         AuditService::logCreated($user, [
             'first_name' => $user->first_name,
             'middle_name' => $user->middle_name,
@@ -339,14 +407,14 @@ class UserManagement extends Component
             'permissions' => $user->permissions,
         ]);
 
-        $this->dispatch('user-created', message: 'User created successfully');
         $this->closeAddModal();
         $this->resetPage();
+        $this->dispatch('swal:success', title: 'User Created', message: "User {$user->first_name} {$user->last_name} has been created successfully.");
     }
 
-    public function update()
+    public function update(): void
     {
-        $validated = $this->validate([
+        $this->validate([
             'firstName' => 'required|string|max:255',
             'middleName' => 'nullable|string|max:255',
             'lastName' => 'required|string|max:255',
@@ -360,7 +428,16 @@ class UserManagement extends Component
 
         $user = User::findOrFail($this->userId);
 
-        // Store original values for audit log
+        // Optimistic locking check
+        try {
+            $user->checkLockVersion($this->lockVersion);
+        } catch (StaleRecordException $e) {
+            $this->lockConflict = true;
+            $this->dispatch('swal:error', title: 'Edit Conflict', message: 'This record was modified by another user. Please close and reopen the edit form to get the latest data.');
+
+            return;
+        }
+
         $originalValues = $user->getOriginal();
 
         $updateData = [
@@ -379,52 +456,85 @@ class UserManagement extends Component
         }
 
         $user->update($updateData);
+        $user->incrementLockVersion();
 
-        // Log the update
         $changedFields = [];
         foreach ($updateData as $key => $value) {
-            if ($key !== 'password' && $originalValues[$key] !== $value) {
+            if ($key !== 'password' && ($originalValues[$key] ?? null) !== $value) {
                 $changedFields[$key] = $value;
             } elseif ($key === 'password' && $this->password) {
                 $changedFields[$key] = '***changed***';
             }
         }
+
         if (! empty($changedFields)) {
             AuditService::logUpdated($user, $originalValues, $changedFields);
         }
 
-        $this->dispatch('user-updated', message: 'User updated successfully');
         $this->closeEditModal();
+        $this->dispatch('swal:success', title: 'User Updated', message: "User {$user->first_name} {$user->last_name} has been updated successfully.");
     }
 
-    public function destroy()
+    public function destroy(): void
     {
         $user = User::findOrFail($this->deleteConfirmUserId);
 
-        // Prevent deleting the currently authenticated user
         if ($user->id === auth()->id()) {
-            $this->dispatch('error', message: 'Cannot delete your own account');
+            $this->dispatch('swal:error', title: 'Error', message: 'Cannot delete your own account.');
             $this->closeDeleteModal();
 
             return;
         }
 
-        // Log the deletion before deleting
+        $userName = $user->first_name.' '.$user->last_name;
+
+        // Log with cascade info before soft deleting
+        $enrollmentCount = $user->enrollments()->count();
+        $warning = $enrollmentCount > 0 ? "had {$enrollmentCount} enrollment(s)" : '';
         AuditService::logDeleted($user);
 
-        $user->delete();
+        $user->delete(); // Soft delete
 
-        $this->dispatch('user-deleted', message: 'User deleted successfully');
         $this->closeDeleteModal();
         $this->resetPage();
+        $this->dispatch('swal:success', title: 'User Deleted', message: "User {$userName} has been moved to trash.");
     }
 
-    public function resetDevice($userId)
+    /**
+     * Restore a soft-deleted user.
+     */
+    public function restoreUser($userId): void
+    {
+        $user = User::onlyTrashed()->findOrFail($userId);
+        $user->restore();
+
+        AuditService::logRestored($user);
+
+        $this->dispatch('swal:success', title: 'User Restored', message: "User {$user->first_name} {$user->last_name} has been restored.");
+    }
+
+    /**
+     * Permanently delete a soft-deleted user.
+     */
+    public function forceDeleteUser($userId): void
+    {
+        $user = User::onlyTrashed()->findOrFail($userId);
+        $userName = $user->first_name.' '.$user->last_name;
+
+        AuditService::logForceDeleted($user);
+
+        $user->forceDelete();
+
+        $this->resetPage();
+        $this->dispatch('swal:success', title: 'Permanently Deleted', message: "User {$userName} has been permanently deleted.");
+    }
+
+    public function resetDevice($userId): void
     {
         $user = User::findOrFail($userId);
 
         if ($user->role !== 'student') {
-            $this->dispatch('error', message: 'Device reset is only applicable to students.');
+            $this->dispatch('swal:error', title: 'Error', message: 'Device reset is only applicable to students.');
 
             return;
         }
@@ -439,10 +549,10 @@ class UserManagement extends Component
             'Admin reset device binding for student '.$user->first_name.' '.$user->last_name
         );
 
-        $this->dispatch('user-updated', message: 'Device binding has been reset.');
+        $this->dispatch('swal:success', title: 'Device Reset', message: 'Device binding has been reset.');
     }
 
-    public function resetForm()
+    public function resetForm(): void
     {
         $this->userId = null;
         $this->firstName = '';
@@ -454,6 +564,8 @@ class UserManagement extends Component
         $this->role = 'student';
         $this->status = 'active';
         $this->permissions = [];
+        $this->lockVersion = 0;
+        $this->lockConflict = false;
         $this->resetErrorBag();
     }
 

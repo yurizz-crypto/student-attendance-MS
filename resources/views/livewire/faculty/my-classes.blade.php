@@ -197,6 +197,18 @@
                 </div>
 
                 <form wire:submit="@if($showCreateModal) store @else update @endif" class="p-6 space-y-4">
+                    {{-- Lock conflict banner (edit mode only) --}}
+                    @if($showEditModal && $lockConflict)
+                        <div class="flex items-start gap-3 p-4 rounded-lg bg-error/10 border border-error/30">
+                            <svg class="w-5 h-5 text-error flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div>
+                                <p class="font-semibold text-error text-sm">Edit Conflict Detected</p>
+                                <p class="text-xs text-gray-600 mt-1">This class was modified by another user. Please close and reopen the form to load the latest data.</p>
+                            </div>
+                        </div>
+                    @endif
                     @error('general')
                         <div class="bg-error/10 border border-error/20 text-error px-4 py-3 rounded-lg text-sm font-medium">
                             {{ $message }}
@@ -278,18 +290,30 @@
                     <h3 class="text-lg font-bold text-navy">Delete Class</h3>
                 </div>
 
-                <div class="p-6">
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="w-12 h-12 rounded-lg bg-error/10 text-error flex items-center justify-center">
-                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4v2m0 0v2m0-2v-2m0 0h2m-2 0h-2" />
-                            </svg>
-                        </div>
-                        <div>
-                            <p class="font-semibold text-gray-900">Are you sure?</p>
-                            <p class="text-sm text-gray-500">This action cannot be undone. All enrollments will be removed.</p>
-                        </div>
+                <div class="p-6 space-y-4">
+                    <div class="flex items-center justify-center w-12 h-12 mx-auto rounded-full bg-error/10">
+                        <svg class="w-6 h-6 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
                     </div>
+
+                    <div class="text-center">
+                        <p class="font-semibold text-gray-800 mb-1">Delete &ldquo;{{ $cascadeInfo['name'] ?? 'this class' }}&rdquo;?</p>
+                        <p class="text-sm text-gray-500">This class will be soft-deleted and can be restored by an admin.</p>
+                    </div>
+
+                    {{-- Cascade warning if there are enrollments --}}
+                    @if(!empty($cascadeInfo) && $cascadeInfo['enrollments'] > 0)
+                        <div class="flex items-start gap-3 p-3 rounded-lg bg-warning/10 border border-warning/30">
+                            <svg class="w-5 h-5 text-warning flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <div class="text-sm">
+                                <p class="font-semibold text-warning">Cascade Warning</p>
+                                <p class="mt-0.5 text-gray-600">{{ $cascadeInfo['enrollments'] }} enrolled student(s) will lose access to this class.</p>
+                            </div>
+                        </div>
+                    @endif
 
                     <div class="flex flex-col sm:flex-row gap-2">
                         <button
@@ -300,7 +324,7 @@
                         </button>
                         <button
                             wire:click="delete"
-                            class="w-full sm:flex-1 px-4 py-2 bg-error text-white rounded-lg font-semibold hover:bg-error-hover transition-colors"
+                            class="w-full sm:flex-1 px-4 py-2 bg-error text-white rounded-lg font-semibold hover:bg-red-700 transition-colors"
                         >
                             Delete
                         </button>
@@ -599,12 +623,6 @@
                             <li>Students must already exist in the system</li>
                         </ul>
                     </div>
-
-                    @error('general')
-                        <div class="bg-error/10 border border-error/20 text-error px-4 py-3 rounded-lg text-sm font-medium">
-                            {{ $message }}
-                        </div>
-                    @enderror
 
                     <div>
                         <label class="block text-sm font-semibold text-navy mb-2">Upload CSV File</label>

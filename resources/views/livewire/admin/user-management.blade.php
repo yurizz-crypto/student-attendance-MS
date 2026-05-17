@@ -28,6 +28,17 @@
 
             <div class="flex gap-2">
                 <button
+                    wire:click="toggleTrashed"
+                    class="px-4 py-2 border rounded-lg font-semibold text-sm transition-colors flex items-center gap-2
+                        {{ $showTrashed ? 'bg-error/10 border-error text-error' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50' }}"
+                    title="{{ $showTrashed ? 'Show active users' : 'Show deleted users' }}"
+                >
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    {{ $showTrashed ? 'View Active' : 'View Trash' }}
+                </button>
+                <button
                     wire:click="openImportModal"
                     class="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg font-semibold text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
                 >
@@ -36,6 +47,7 @@
                     </svg>
                     Import Users
                 </button>
+                @if(!$showTrashed)
                 <button
                     wire:click="openAddModal"
                     class="px-4 py-2 bg-brand text-white rounded-lg font-semibold text-sm hover:bg-brand-hover transition-colors flex items-center gap-2 justify-center sm:justify-start"
@@ -45,6 +57,7 @@
                     </svg>
                     Add User
                 </button>
+                @endif
             </div>
         </div>
     </div>
@@ -128,36 +141,61 @@
                             <td class="px-6 py-4 text-gray-700">{{ $user->created_at->format('M d, Y') }}</td>
                             <td class="px-6 py-4">
                                 <div class="flex items-center justify-center gap-2">
-                                    @if($user->role === 'student' && !empty($user->device_fingerprint))
+                                    @if($showTrashed)
+                                        {{-- Trashed: restore or force-delete --}}
                                         <button
-                                            wire:click="resetDevice({{ $user->id }})"
-                                            wire:confirm="Are you sure you want to reset the device binding for this student? They will need to log in again on their device to register it."
-                                            class="p-2 text-warning hover:bg-warning/10 rounded-lg transition-colors"
-                                            title="Reset Device Binding"
+                                            wire:click="restoreUser({{ $user->id }})"
+                                            wire:confirm="Restore this user?"
+                                            class="p-2 text-success hover:bg-success/10 rounded-lg transition-colors"
+                                            title="Restore user"
                                         >
                                             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                            </svg>
+                                        </button>
+                                        <button
+                                            wire:click="forceDeleteUser({{ $user->id }})"
+                                            wire:confirm="Permanently delete this user? This CANNOT be undone."
+                                            class="p-2 text-error hover:bg-error/10 rounded-lg transition-colors"
+                                            title="Permanently delete"
+                                        >
+                                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    @else
+                                        {{-- Active: device reset, edit, delete --}}
+                                        @if($user->role === 'student' && !empty($user->device_fingerprint))
+                                            <button
+                                                wire:click="resetDevice({{ $user->id }})"
+                                                wire:confirm="Are you sure you want to reset the device binding for this student?"
+                                                class="p-2 text-warning hover:bg-warning/10 rounded-lg transition-colors"
+                                                title="Reset Device Binding"
+                                            >
+                                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                                </svg>
+                                            </button>
+                                        @endif
+                                        <button
+                                            wire:click="openEditModal({{ $user->id }})"
+                                            class="p-2 text-info hover:bg-info/10 rounded-lg transition-colors"
+                                            title="Edit user"
+                                        >
+                                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                        </button>
+                                        <button
+                                            wire:click="openDeleteModal({{ $user->id }})"
+                                            class="p-2 text-error hover:bg-error/10 rounded-lg transition-colors"
+                                            title="Delete user"
+                                        >
+                                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                             </svg>
                                         </button>
                                     @endif
-                                    <button
-                                        wire:click="openEditModal({{ $user->id }})"
-                                        class="p-2 text-info hover:bg-info/10 rounded-lg transition-colors"
-                                        title="Edit user"
-                                    >
-                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                        </svg>
-                                    </button>
-                                    <button
-                                        wire:click="openDeleteModal({{ $user->id }})"
-                                        class="p-2 text-error hover:bg-error/10 rounded-lg transition-colors"
-                                        title="Delete user"
-                                    >
-                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
-                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -359,6 +397,18 @@
                 </div>
 
                 <form wire:submit="update" class="p-6 space-y-4">
+                    {{-- Optimistic lock conflict banner --}}
+                    @if($lockConflict)
+                        <div class="flex items-start gap-3 p-4 rounded-lg bg-error/10 border border-error/30">
+                            <svg class="w-5 h-5 text-error flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div>
+                                <p class="font-semibold text-error text-sm">Edit Conflict Detected</p>
+                                <p class="text-xs text-gray-600 mt-1">This record was modified by another user. Please close and reopen the form to load the latest data.</p>
+                            </div>
+                        </div>
+                    @endif
                     <!-- First Name -->
                     <div>
                         <label class="block text-sm font-semibold text-navy mb-2">First Name</label>
@@ -521,11 +571,32 @@
                         </svg>
                     </div>
 
-                    <p class="text-center text-gray-700">
-                        Are you sure you want to delete this user? This action cannot be undone.
-                    </p>
+                    <div class="text-center">
+                        <p class="font-semibold text-gray-800 mb-1">Move {{ $cascadeInfo['name'] ?? 'this user' }} to Trash?</p>
+                        <p class="text-sm text-gray-500">This user will be soft-deleted and can be restored later from the Trash view.</p>
+                    </div>
 
-                    <div class="flex gap-3 pt-4">
+                    {{-- Cascade warning --}}
+                    @if(!empty($cascadeInfo) && ($cascadeInfo['enrollments'] > 0 || $cascadeInfo['attendance_records'] > 0))
+                        <div class="flex items-start gap-3 p-3 rounded-lg bg-warning/10 border border-warning/30">
+                            <svg class="w-5 h-5 text-warning flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <div class="text-sm">
+                                <p class="font-semibold text-warning">Cascade Warning</p>
+                                <ul class="mt-1 text-gray-600 space-y-0.5">
+                                    @if($cascadeInfo['enrollments'] > 0)
+                                        <li>• {{ $cascadeInfo['enrollments'] }} enrollment(s) will be hidden</li>
+                                    @endif
+                                    @if($cascadeInfo['attendance_records'] > 0)
+                                        <li>• {{ $cascadeInfo['attendance_records'] }} attendance record(s) will be hidden</li>
+                                    @endif
+                                </ul>
+                            </div>
+                        </div>
+                    @endif
+
+                    <div class="flex gap-3 pt-2">
                         <button
                             type="button"
                             wire:click="closeDeleteModal"
@@ -538,7 +609,7 @@
                             wire:click="destroy"
                             class="flex-1 px-4 py-2 rounded-lg bg-error text-white font-semibold hover:bg-red-700 transition-colors"
                         >
-                            Delete
+                            Move to Trash
                         </button>
                     </div>
                 </div>
@@ -668,23 +739,5 @@
         </div>
     @endif
 
-    @script
-        <script>
-            $wire.on('user-created', (event) => {
-                // You can add toast notification here if needed
-            });
-
-            $wire.on('user-updated', (event) => {
-                // You can add toast notification here if needed
-            });
-
-            $wire.on('user-deleted', (event) => {
-                // You can add toast notification here if needed
-            });
-
-            $wire.on('error', (event) => {
-                // You can add error notification here if needed
-            });
-        </script>
-    @endscript
 </div>
+

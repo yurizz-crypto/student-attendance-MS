@@ -53,6 +53,9 @@
                         <x-nav-link :href="route('admin.reports')" :active="request()->routeIs('admin.reports')">
                             {{ __('Reports') }}
                         </x-nav-link>
+                        <x-nav-link :href="route('admin.trash')" :active="request()->routeIs('admin.trash')">
+                            {{ __('Trash') }}
+                        </x-nav-link>
                     @endif
                 </div>
             </div>
@@ -149,6 +152,9 @@
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('admin.reports')" :active="request()->routeIs('admin.reports')">
                     {{ __('Reports') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('admin.trash')" :active="request()->routeIs('admin.trash')">
+                    {{ __('Trash') }}
                 </x-responsive-nav-link>
             @endif
         </div>
