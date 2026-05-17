@@ -4,10 +4,14 @@ namespace App\Livewire\Admin;
 
 use App\Exceptions\StaleRecordException;
 use App\Exports\UserImportErrorExport;
+use App\Exports\UsersExport;
 use App\Imports\UsersImport;
+use App\Models\AuditLog;
 use App\Models\User;
 use App\Services\AuditService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
@@ -21,11 +25,32 @@ class UserManagement extends Component
 
     public $filterRole = '';
 
+    public $filterStatus = '';
+
+    public $dateFrom = '';
+
+    public $dateTo = '';
+
+    public $perPage = 10;
+
     public $sortField = 'created_at';
 
     public $sortDirection = 'desc';
 
     public $showTrashed = false;
+
+    /** @var array<int> Selected user IDs for bulk actions */
+    public $selectedIds = [];
+
+    public $selectAll = false;
+
+    /** @var array<string> Visible column keys */
+    public $visibleColumns = ['name', 'identity_id', 'email', 'role', 'status', 'created'];
+
+    // Activity panel
+    public $showActivityPanel = false;
+
+    public $activityUserId = null;
 
     // Form fields
     public $userId = null;
@@ -89,6 +114,163 @@ class UserManagement extends Component
         $this->resetPage();
     }
 
+    public function updatedFilterStatus(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedDateFrom(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedDateTo(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedPerPage(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedSelectAll(): void
+    {
+        $this->selectedIds = $this->selectAll
+            ? $this->getUsers()->pluck('id')->map(fn ($id) => (string) $id)->toArray()
+            : [];
+    }
+
+    public function toggleSelect(string $id): void
+    {
+        if (in_array($id, $this->selectedIds)) {
+            $this->selectedIds = array_values(array_filter($this->selectedIds, fn ($i) => $i !== $id));
+        } else {
+            $this->selectedIds[] = $id;
+        }
+        $this->selectAll = false;
+    }
+
+    public function clearSelection(): void
+    {
+        $this->selectedIds = [];
+        $this->selectAll = false;
+    }
+
+    public function bulkDelete(): void
+    {
+        if (empty($this->selectedIds)) {
+            return;
+        }
+
+        $count = count($this->selectedIds);
+        User::whereIn('id', $this->selectedIds)->delete();
+        AuditService::log('bulk_delete_users', null, ['count' => $count, 'ids' => $this->selectedIds]);
+        $this->clearSelection();
+        $this->dispatch('swal:success', message: "{$count} user(s) moved to trash.");
+    }
+
+    public function bulkUpdateStatus(string $status): void
+    {
+        if (empty($this->selectedIds)) {
+            return;
+        }
+
+        $count = count($this->selectedIds);
+        User::whereIn('id', $this->selectedIds)->update(['status' => $status]);
+        AuditService::log('bulk_status_update', null, ['count' => $count, 'status' => $status, 'ids' => $this->selectedIds]);
+        $this->clearSelection();
+        $this->dispatch('swal:success', message: "{$count} user(s) set to {$status}.");
+    }
+
+    public function exportExcel(): mixed
+    {
+        return Excel::download(
+            new UsersExport($this->currentFilters()),
+            'users_'.now()->format('Y-m-d_His').'.xlsx'
+        );
+    }
+
+    public function exportPdf(): mixed
+    {
+        $users = User::query()
+            ->when($this->showTrashed, fn ($q) => $q->onlyTrashed())
+            ->when($this->searchTerm, function ($q) {
+                $s = $this->searchTerm;
+
+                return $q->where(function ($inner) use ($s) {
+                    $inner->where('first_name', 'like', "%{$s}%")
+                        ->orWhere('last_name', 'like', "%{$s}%")
+                        ->orWhere('identity_id', 'like', "%{$s}%")
+                        ->orWhere('email', 'like', "%{$s}%");
+                });
+            })
+            ->when($this->filterRole, fn ($q) => $q->where('role', $this->filterRole))
+            ->when($this->filterStatus, fn ($q) => $q->where('status', $this->filterStatus))
+            ->when($this->dateFrom, fn ($q) => $q->whereDate('created_at', '>=', $this->dateFrom))
+            ->when($this->dateTo, fn ($q) => $q->whereDate('created_at', '<=', $this->dateTo))
+            ->when(! empty($this->selectedIds), fn ($q) => $q->whereIn('id', $this->selectedIds))
+            ->orderBy($this->sortField, $this->sortDirection)
+            ->get();
+
+        $pdf = Pdf::loadView('exports.users-pdf', compact('users'))
+            ->setPaper('a4', 'landscape');
+
+        return response()->streamDownload(
+            fn () => print ($pdf->output()),
+            'users_'.now()->format('Y-m-d_His').'.pdf'
+        );
+    }
+
+    /** @return array<string, mixed> */
+    protected function currentFilters(): array
+    {
+        return [
+            'showTrashed' => $this->showTrashed,
+            'searchTerm' => $this->searchTerm,
+            'filterRole' => $this->filterRole,
+            'filterStatus' => $this->filterStatus,
+            'dateFrom' => $this->dateFrom,
+            'dateTo' => $this->dateTo,
+            'selectedIds' => $this->selectedIds,
+        ];
+    }
+
+    // ── Inline blur validation ────────────────────────────────────────────────
+
+    public function updatedFirstName(): void
+    {
+        $this->validateOnly('firstName', ['firstName' => 'required|string|max:255']);
+    }
+
+    public function updatedLastName(): void
+    {
+        $this->validateOnly('lastName', ['lastName' => 'required|string|max:255']);
+    }
+
+    public function updatedIdentityId(): void
+    {
+        $rule = $this->userId
+            ? "required|string|max:255|unique:users,identity_id,{$this->userId}"
+            : 'required|string|max:255|unique:users,identity_id';
+        $this->validateOnly('identityId', ['identityId' => $rule]);
+    }
+
+    public function updatedEmail(): void
+    {
+        $rule = $this->userId
+            ? "required|email|max:255|unique:users,email,{$this->userId}"
+            : 'required|email|max:255|unique:users,email';
+        $this->validateOnly('email', ['email' => $rule]);
+    }
+
+    public function updatedPassword(): void
+    {
+        if ($this->password !== '') {
+            $this->validateOnly('password', ['password' => 'nullable|string|min:8']);
+        }
+    }
+
     public function toggleTrashed(): void
     {
         $this->showTrashed = ! $this->showTrashed;
@@ -107,7 +289,7 @@ class UserManagement extends Component
 
     public function getUsers()
     {
-        $query = User::when($this->showTrashed, fn ($q) => $q->onlyTrashed())
+        return User::when($this->showTrashed, fn ($q) => $q->onlyTrashed())
             ->when($this->searchTerm, function ($query) {
                 $search = $this->searchTerm;
 
@@ -119,12 +301,12 @@ class UserManagement extends Component
                         ->orWhere('email', 'like', "%{$search}%");
                 });
             })
-            ->when($this->filterRole, function ($query) {
-                return $query->where('role', $this->filterRole);
-            })
-            ->orderBy($this->sortField, $this->sortDirection);
-
-        return $query->paginate(10);
+            ->when($this->filterRole, fn ($query) => $query->where('role', $this->filterRole))
+            ->when($this->filterStatus, fn ($query) => $query->where('status', $this->filterStatus))
+            ->when($this->dateFrom, fn ($query) => $query->whereDate('created_at', '>=', $this->dateFrom))
+            ->when($this->dateTo, fn ($query) => $query->whereDate('created_at', '<=', $this->dateTo))
+            ->orderBy($this->sortField, $this->sortDirection)
+            ->paginate($this->perPage);
     }
 
     public function openAddModal(): void
@@ -552,6 +734,45 @@ class UserManagement extends Component
         $this->dispatch('swal:success', title: 'Device Reset', message: 'Device binding has been reset.');
     }
 
+    // ── Activity Panel ────────────────────────────────────────────────────────
+
+    public function openActivityPanel(int $userId): void
+    {
+        $this->activityUserId = $userId;
+        $this->showActivityPanel = true;
+    }
+
+    public function closeActivityPanel(): void
+    {
+        $this->showActivityPanel = false;
+        $this->activityUserId = null;
+    }
+
+    public function forceLogout(int $userId): void
+    {
+        $user = User::findOrFail($userId);
+
+        // Invalidate remember token → all "remember me" sessions become invalid
+        $user->forceFill(['remember_token' => Str::random(60)])->saveQuietly();
+
+        // Delete all sessions from DB session store for this user (if using database driver)
+        if (config('session.driver') === 'database') {
+            \DB::table(config('session.table', 'sessions'))
+                ->where('user_id', $userId)
+                ->delete();
+        }
+
+        AuditService::log(
+            'force_logout',
+            User::class,
+            $userId,
+            null,
+            'Admin force-logged out '.$user->first_name.' '.$user->last_name.' from all devices'
+        );
+
+        $this->dispatch('swal:success', title: 'Force Logout', message: $user->first_name.' has been logged out of all devices.');
+    }
+
     public function resetForm(): void
     {
         $this->userId = null;
@@ -571,8 +792,58 @@ class UserManagement extends Component
 
     public function render()
     {
+        $activityUser = null;
+        $loginHistory = collect();
+        $activityStats = [];
+        $topFeatures = collect();
+
+        if ($this->activityUserId) {
+            $activityUser = User::find($this->activityUserId);
+
+            if ($activityUser) {
+                $loginHistory = AuditLog::where('user_id', $this->activityUserId)
+                    ->whereIn('action', ['login', 'logout', 'force_logout'])
+                    ->latest()
+                    ->limit(20)
+                    ->get();
+
+                $totalLogins = AuditLog::where('user_id', $this->activityUserId)
+                    ->where('action', 'login')->count();
+
+                $lastLogin = AuditLog::where('user_id', $this->activityUserId)
+                    ->where('action', 'login')->latest()->first();
+
+                $actionsThisWeek = AuditLog::where('user_id', $this->activityUserId)
+                    ->where('created_at', '>=', now()->startOfWeek())->count();
+
+                $actionsToday = AuditLog::where('user_id', $this->activityUserId)
+                    ->whereDate('created_at', today())->count();
+
+                $activityStats = [
+                    'total_logins' => $totalLogins,
+                    'last_login' => $lastLogin?->created_at,
+                    'last_login_ip' => $lastLogin?->ip_address,
+                    'last_login_ua' => $lastLogin?->user_agent,
+                    'actions_today' => $actionsToday,
+                    'actions_this_week' => $actionsThisWeek,
+                ];
+
+                $topFeatures = AuditLog::where('user_id', $this->activityUserId)
+                    ->whereNotNull('changes')
+                    ->selectRaw('action, count(*) as count')
+                    ->groupBy('action')
+                    ->orderByDesc('count')
+                    ->limit(5)
+                    ->get();
+            }
+        }
+
         return view('livewire.admin.user-management', [
             'users' => $this->getUsers(),
+            'activityUser' => $activityUser,
+            'loginHistory' => $loginHistory,
+            'activityStats' => $activityStats,
+            'topFeatures' => $topFeatures,
         ]);
     }
 }

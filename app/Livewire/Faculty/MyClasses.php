@@ -3,6 +3,7 @@
 namespace App\Livewire\Faculty;
 
 use App\Exceptions\StaleRecordException;
+use App\Exports\ClassSectionsExport;
 use App\Models\ClassSection;
 use App\Models\Enrollment;
 use App\Models\Semester;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
+use Maatwebsite\Excel\Facades\Excel;
 
 class MyClasses extends Component
 {
@@ -23,6 +25,8 @@ class MyClasses extends Component
     public $sortField = 'created_at';
 
     public $sortDirection = 'desc';
+
+    public $perPage = 10;
 
     // Form fields
     public $classId = null;
@@ -83,6 +87,45 @@ class MyClasses extends Component
         $this->resetPage();
     }
 
+    public function updatedPerPage(): void
+    {
+        $this->resetPage();
+    }
+
+    public function exportExcel(): mixed
+    {
+        $classes = ClassSection::where('faculty_id', Auth::id())
+            ->with(['subject', 'semester'])
+            ->when($this->filterSemesterId, fn ($q) => $q->where('semester_id', $this->filterSemesterId))
+            ->when($this->searchTerm, function ($q) {
+                $search = $this->searchTerm;
+
+                return $q->where(function ($inner) use ($search) {
+                    $inner->where('name', 'like', "%{$search}%")
+                        ->orWhereHas('subject', fn ($sq) => $sq->where('name', 'like', "%{$search}%"));
+                });
+            })
+            ->orderBy($this->sortField, $this->sortDirection)
+            ->get();
+
+        return Excel::download(
+            new ClassSectionsExport($classes),
+            'classes_'.now()->format('Y-m-d_His').'.xlsx'
+        );
+    }
+
+    // ── Inline blur validation ────────────────────────────────────────────────
+
+    public function updatedSubjectName(): void
+    {
+        $this->validateOnly('subjectName', ['subjectName' => 'required|string|max:255']);
+    }
+
+    public function updatedClassName(): void
+    {
+        $this->validateOnly('className', ['className' => 'required|string|max:255']);
+    }
+
     public function sort($field)
     {
         if ($this->sortField === $field) {
@@ -111,7 +154,7 @@ class MyClasses extends Component
                 });
             })
             ->orderBy($this->sortField, $this->sortDirection)
-            ->paginate(10);
+            ->paginate($this->perPage);
     }
 
     public function openCreateModal()

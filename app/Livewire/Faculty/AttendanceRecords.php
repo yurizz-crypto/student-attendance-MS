@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Faculty;
 
+use App\Exports\AttendanceSessionsExport;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\ClassSection;
@@ -11,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Maatwebsite\Excel\Facades\Excel;
 
 class AttendanceRecords extends Component
 {
@@ -27,6 +29,12 @@ class AttendanceRecords extends Component
     public $sortField = 'date';
 
     public $sortDirection = 'desc';
+
+    public $perPage = 10;
+
+    public $dateFrom = '';
+
+    public $dateTo = '';
 
     // Form fields
     public $attendanceDate = '';
@@ -72,6 +80,52 @@ class AttendanceRecords extends Component
         $this->resetPage();
     }
 
+    public function updatedPerPage(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedDateFrom(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedDateTo(): void
+    {
+        $this->resetPage();
+    }
+
+    public function exportExcel(): mixed
+    {
+        $classIds = ClassSection::where('faculty_id', Auth::id())->pluck('id');
+
+        $sessions = AttendanceSession::whereIn('class_section_id', $classIds)
+            ->when($this->filterClassId, fn ($q) => $q->where('class_section_id', $this->filterClassId))
+            ->when($this->filterStatus, fn ($q) => $q->where('status', $this->filterStatus))
+            ->when($this->dateFrom, fn ($q) => $q->whereDate('date', '>=', $this->dateFrom))
+            ->when($this->dateTo, fn ($q) => $q->whereDate('date', '<=', $this->dateTo))
+            ->with('classSection.subject')
+            ->orderBy($this->sortField, $this->sortDirection)
+            ->get();
+
+        return Excel::download(
+            new AttendanceSessionsExport($sessions),
+            'attendance_sessions_'.now()->format('Y-m-d_His').'.xlsx'
+        );
+    }
+
+    // ── Inline blur validation ────────────────────────────────────────────────
+
+    public function updatedClassId(): void
+    {
+        $this->validateOnly('classId', ['classId' => 'required|exists:class_sections,id']);
+    }
+
+    public function updatedAttendanceDate(): void
+    {
+        $this->validateOnly('attendanceDate', ['attendanceDate' => 'required|date']);
+    }
+
     public function sort($field)
     {
         if ($this->sortField === $field) {
@@ -101,29 +155,21 @@ class AttendanceRecords extends Component
 
     public function getAttendanceSessions()
     {
-        $query = AttendanceSession::query()
-            ->when($this->filterClassId, function ($q) {
-                return $q->where('class_section_id', $this->filterClassId);
-            });
-
-        // Only show sessions for faculty's classes
         $classIds = ClassSection::where('faculty_id', Auth::id())->pluck('id');
-        $query->whereIn('class_section_id', $classIds);
 
-        $query->with('classSection.subject')
-            ->when($this->filterStatus, function ($q) {
-                return $q->where('status', $this->filterStatus);
-            })
+        return AttendanceSession::whereIn('class_section_id', $classIds)
+            ->when($this->filterClassId, fn ($q) => $q->where('class_section_id', $this->filterClassId))
+            ->when($this->filterStatus, fn ($q) => $q->where('status', $this->filterStatus))
+            ->when($this->dateFrom, fn ($q) => $q->whereDate('date', '>=', $this->dateFrom))
+            ->when($this->dateTo, fn ($q) => $q->whereDate('date', '<=', $this->dateTo))
             ->when($this->searchTerm, function ($q) {
                 $search = $this->searchTerm;
 
-                return $q->whereHas('classSection', function ($sq) use ($search) {
-                    $sq->where('name', 'like', "%{$search}%");
-                });
+                return $q->whereHas('classSection', fn ($sq) => $sq->where('name', 'like', "%{$search}%"));
             })
-            ->orderBy($this->sortField, $this->sortDirection);
-
-        return $query->paginate(10);
+            ->with('classSection.subject')
+            ->orderBy($this->sortField, $this->sortDirection)
+            ->paginate($this->perPage);
     }
 
     public function openSessionModal()

@@ -48,6 +48,29 @@
                 New Session
             </button>
         </div>
+
+        {{-- Second row: date range + export --}}
+        <div class="flex flex-wrap items-center gap-3">
+            <div class="flex items-center gap-2">
+                <label class="text-xs text-gray-500 font-medium">From</label>
+                <input type="date" wire:model.live="dateFrom" class="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+                <label class="text-xs text-gray-500 font-medium">To</label>
+                <input type="date" wire:model.live="dateTo" class="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+            </div>
+            @if($searchTerm || $filterStatus || $filterClassId || $dateFrom || $dateTo)
+                <button wire:click="$set('searchTerm',''); $set('filterStatus',''); $set('filterClassId',''); $set('dateFrom',''); $set('dateTo','')"
+                    class="px-3 py-2 text-xs text-error border border-error/30 rounded-lg hover:bg-error/5 transition-colors font-medium">
+                    Clear Filters
+                </button>
+            @endif
+            <div class="ml-auto">
+                <button wire:click="exportExcel"
+                    class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Export Excel
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Table -->
@@ -179,12 +202,24 @@
         </div>
     </div>
 
-    <!-- Pagination -->
-    @if($sessions->hasPages())
-        <div class="mt-6">
-            {{ $sessions->links() }}
+    <!-- Pagination & per-page -->
+    <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <label class="text-sm text-gray-500">Rows per page:</label>
+            <select wire:model.live="perPage" class="px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand">
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+            <span class="text-sm text-gray-500">
+                Showing {{ $sessions->firstItem() ?? 0 }}–{{ $sessions->lastItem() ?? 0 }} of {{ $sessions->total() }} results
+            </span>
         </div>
-    @endif
+        @if($sessions->hasPages())
+            <div>{{ $sessions->links() }}</div>
+        @endif
+    </div>
 
     <!-- Create Session Modal -->
     @if($showSessionModal)
@@ -202,10 +237,15 @@
                 <form wire:submit="createSession" class="p-6 space-y-4">
                     <!-- Class -->
                     <div>
-                        <label class="block text-sm font-semibold text-navy mb-2">Select Class</label>
+                        <label for="session-class" class="block text-sm font-semibold text-navy mb-2">
+                            Select Class <span class="text-error ml-0.5" aria-hidden="true">*</span>
+                        </label>
                         <select
-                            wire:model="classId"
-                            class="w-full px-4 py-2 rounded-lg border @error('classId') border-error @else border-gray-200 @enderror focus:outline-none focus:ring-2 focus:ring-brand"
+                            id="session-class"
+                            wire:model.blur="classId"
+                            aria-required="true"
+                            aria-describedby="session-class-error"
+                            @class(['w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-brand transition-colors', 'border-error bg-error/5' => $errors->has('classId'), 'border-gray-200' => !$errors->has('classId')])
                         >
                             <option value="">Select a class</option>
                             @foreach($activeFacultyClasses as $class)
@@ -213,51 +253,78 @@
                             @endforeach
                         </select>
                         @error('classId')
-                            <p class="text-error text-xs mt-1">{{ $message }}</p>
+                            <p id="session-class-error" class="text-error text-xs mt-1 flex items-center gap-1" role="alert">
+                                <svg class="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                                {{ $message }}
+                            </p>
                         @enderror
                     </div>
 
                     <!-- Date -->
                     <div>
-                        <label class="block text-sm font-semibold text-navy mb-2">Date</label>
+                        <label for="session-date" class="block text-sm font-semibold text-navy mb-2">
+                            Date <span class="text-error ml-0.5" aria-hidden="true">*</span>
+                        </label>
                         <input
+                            id="session-date"
                             type="date"
-                            wire:model="attendanceDate"
-                            class="w-full px-4 py-2 rounded-lg border @error('attendanceDate') border-error @else border-gray-200 @enderror focus:outline-none focus:ring-2 focus:ring-brand"
+                            wire:model.blur="attendanceDate"
+                            aria-required="true"
+                            aria-describedby="session-date-error"
+                            @class(['w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-brand transition-colors', 'border-error bg-error/5' => $errors->has('attendanceDate'), 'border-gray-200' => !$errors->has('attendanceDate')])
                         >
                         @error('attendanceDate')
-                            <p class="text-error text-xs mt-1">{{ $message }}</p>
+                            <p id="session-date-error" class="text-error text-xs mt-1 flex items-center gap-1" role="alert">
+                                <svg class="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                                {{ $message }}
+                            </p>
                         @enderror
                     </div>
 
                     <!-- Time Frame -->
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-semibold text-navy mb-2">Start Time</label>
+                            <label for="session-start" class="block text-sm font-semibold text-navy mb-2">
+                                Start Time <span class="text-error ml-0.5" aria-hidden="true">*</span>
+                            </label>
                             <input
+                                id="session-start"
                                 type="time"
                                 wire:model="startTime"
-                                class="w-full px-4 py-2 rounded-lg border @error('startTime') border-error @else border-gray-200 @enderror focus:outline-none focus:ring-2 focus:ring-brand"
+                                aria-required="true"
+                                @class(['w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-brand transition-colors', 'border-error bg-error/5' => $errors->has('startTime'), 'border-gray-200' => !$errors->has('startTime')])
                             >
                             @error('startTime')
-                                <p class="text-error text-xs mt-1">{{ $message }}</p>
+                                <p class="text-error text-xs mt-1 flex items-center gap-1" role="alert">
+                                    <svg class="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                                    {{ $message }}
+                                </p>
                             @enderror
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-navy mb-2">End Time</label>
+                            <label for="session-end" class="block text-sm font-semibold text-navy mb-2">
+                                End Time <span class="text-error ml-0.5" aria-hidden="true">*</span>
+                            </label>
                             <input
+                                id="session-end"
                                 type="time"
                                 wire:model="endTime"
-                                class="w-full px-4 py-2 rounded-lg border @error('endTime') border-error @else border-gray-200 @enderror focus:outline-none focus:ring-2 focus:ring-brand"
+                                aria-required="true"
+                                @class(['w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-brand transition-colors', 'border-error bg-error/5' => $errors->has('endTime'), 'border-gray-200' => !$errors->has('endTime')])
                             >
                             @error('endTime')
-                                <p class="text-error text-xs mt-1">{{ $message }}</p>
+                                <p class="text-error text-xs mt-1 flex items-center gap-1" role="alert">
+                                    <svg class="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                                    {{ $message }}
+                                </p>
                             @enderror
                         </div>
                     </div>
 
+                    <p class="text-xs text-gray-400"><span class="text-error">*</span> Required fields</p>
+
                     <!-- Submit Button -->
-                    <div class="flex flex-col sm:flex-row gap-2 pt-4">
+                    <div class="flex flex-col sm:flex-row gap-2 pt-2">
                         <button
                             type="button"
                             wire:click="closeSessionModal"
@@ -267,9 +334,16 @@
                         </button>
                         <button
                             type="submit"
-                            class="w-full sm:flex-1 px-4 py-2 bg-brand text-white rounded-lg font-semibold hover:bg-brand-hover transition-colors"
+                            wire:loading.attr="disabled"
+                            wire:target="createSession"
+                            class="w-full sm:flex-1 px-4 py-2 bg-brand text-white rounded-lg font-semibold hover:bg-brand-hover transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
                         >
-                            Create
+                            <svg wire:loading wire:target="createSession" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                            </svg>
+                            <span wire:loading.remove wire:target="createSession">Create</span>
+                            <span wire:loading wire:target="createSession">Creating...</span>
                         </button>
                     </div>
                 </form>

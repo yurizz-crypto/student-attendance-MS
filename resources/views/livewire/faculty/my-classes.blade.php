@@ -36,6 +36,11 @@
                     </svg>
                     Import Classes
                 </button>
+                <button wire:click="exportExcel"
+                    class="w-full sm:w-auto px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg font-semibold text-sm hover:bg-gray-50 transition-colors flex items-center gap-2 justify-center sm:justify-start whitespace-nowrap">
+                    <svg class="w-5 h-5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Export Excel
+                </button>
                 <button
                     wire:click="openManageSemesters"
                     class="w-full sm:w-auto px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg font-semibold text-sm hover:bg-gray-50 transition-colors flex items-center gap-2 justify-center sm:justify-start whitespace-nowrap"
@@ -170,12 +175,24 @@
         </div>
     </div>
 
-    <!-- Pagination -->
-    @if($classes->hasPages())
-        <div class="mt-6">
-            {{ $classes->links() }}
+    <!-- Pagination & per-page -->
+    <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <label class="text-sm text-gray-500">Rows per page:</label>
+            <select wire:model.live="perPage" class="px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand">
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+            <span class="text-sm text-gray-500">
+                Showing {{ $classes->firstItem() ?? 0 }}–{{ $classes->lastItem() ?? 0 }} of {{ $classes->total() }} results
+            </span>
         </div>
-    @endif
+        @if($classes->hasPages())
+            <div>{{ $classes->links() }}</div>
+        @endif
+    </div>
 
     <!-- Create/Edit Class Modal -->
     @if($showCreateModal || $showEditModal)
@@ -196,10 +213,37 @@
                     </button>
                 </div>
 
-                <form wire:submit="@if($showCreateModal) store @else update @endif" class="p-6 space-y-4">
+                <form
+                    wire:submit="@if($showCreateModal) store @else update @endif"
+                    class="p-6 space-y-4"
+                    x-data="{
+                        isDirty: false,
+                        draftKey: 'draft_class_form',
+                        saveDraft() {
+                            const data = { subjectName: $wire.subjectName, className: $wire.className, scheduleDetails: $wire.scheduleDetails };
+                            localStorage.setItem(this.draftKey, JSON.stringify(data));
+                            this.isDirty = true;
+                        },
+                        loadDraft() {
+                            if (!$wire.showCreateModal) return;
+                            try {
+                                const saved = localStorage.getItem(this.draftKey);
+                                if (!saved) return;
+                                const data = JSON.parse(saved);
+                                if (data.subjectName) $wire.set('subjectName', data.subjectName);
+                                if (data.className) $wire.set('className', data.className);
+                                if (data.scheduleDetails) $wire.set('scheduleDetails', data.scheduleDetails);
+                                this.isDirty = true;
+                            } catch(e) {}
+                        },
+                        clearDraft() { localStorage.removeItem(this.draftKey); this.isDirty = false; },
+                    }"
+                    x-init="loadDraft()"
+                    @input.debounce.800ms="saveDraft()"
+                >
                     {{-- Lock conflict banner (edit mode only) --}}
                     @if($showEditModal && $lockConflict)
-                        <div class="flex items-start gap-3 p-4 rounded-lg bg-error/10 border border-error/30">
+                        <div class="flex items-start gap-3 p-4 rounded-lg bg-error/10 border border-error/30" role="alert">
                             <svg class="w-5 h-5 text-error flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
@@ -210,55 +254,86 @@
                         </div>
                     @endif
                     @error('general')
-                        <div class="bg-error/10 border border-error/20 text-error px-4 py-3 rounded-lg text-sm font-medium">
+                        <div class="bg-error/10 border border-error/20 text-error px-4 py-3 rounded-lg text-sm font-medium" role="alert">
                             {{ $message }}
                         </div>
                     @enderror
 
                     <!-- Subject -->
                     <div>
-                        <label class="block text-sm font-semibold text-navy mb-2">Subject</label>
+                        <label for="class-subject" class="block text-sm font-semibold text-navy mb-2">
+                            Subject <span class="text-error ml-0.5" aria-hidden="true">*</span>
+                        </label>
                         <input
+                            id="class-subject"
                             type="text"
-                            wire:model="subjectName"
-                            class="w-full px-4 py-2 rounded-lg border @error('subjectName') border-error @else border-gray-200 @enderror focus:outline-none focus:ring-2 focus:ring-brand"
+                            wire:model.blur="subjectName"
+                            aria-required="true"
+                            aria-describedby="class-subject-error"
+                            @class(['w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-brand transition-colors', 'border-error bg-error/5' => $errors->has('subjectName'), 'border-gray-200' => !$errors->has('subjectName')])
                             placeholder="e.g., Data Structures"
                         >
                         @error('subjectName')
-                            <p class="text-error text-xs mt-1">{{ $message }}</p>
+                            <p id="class-subject-error" class="text-error text-xs mt-1 flex items-center gap-1" role="alert">
+                                <svg class="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                                {{ $message }}
+                            </p>
                         @enderror
                     </div>
 
                     <!-- Class Name -->
                     <div>
-                        <label class="block text-sm font-semibold text-navy mb-2">Class Name</label>
+                        <label for="class-name" class="block text-sm font-semibold text-navy mb-2">
+                            Class Name <span class="text-error ml-0.5" aria-hidden="true">*</span>
+                        </label>
                         <input
+                            id="class-name"
                             type="text"
-                            wire:model="className"
-                            class="w-full px-4 py-2 rounded-lg border @error('className') border-error @else border-gray-200 @enderror focus:outline-none focus:ring-2 focus:ring-brand"
+                            wire:model.blur="className"
+                            aria-required="true"
+                            aria-describedby="class-name-error"
+                            @class(['w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-brand transition-colors', 'border-error bg-error/5' => $errors->has('className'), 'border-gray-200' => !$errors->has('className')])
                             placeholder="e.g., Section A"
                         >
                         @error('className')
-                            <p class="text-error text-xs mt-1">{{ $message }}</p>
+                            <p id="class-name-error" class="text-error text-xs mt-1 flex items-center gap-1" role="alert">
+                                <svg class="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                                {{ $message }}
+                            </p>
                         @enderror
                     </div>
 
                     <!-- Schedule Details -->
                     <div>
-                        <label class="block text-sm font-semibold text-navy mb-2">Schedule Details</label>
+                        <label for="class-schedule" class="block text-sm font-semibold text-navy mb-2">
+                            Schedule Details
+                            <span class="text-xs font-normal text-gray-400">(Optional)</span>
+                        </label>
                         <input
+                            id="class-schedule"
                             type="text"
                             wire:model="scheduleDetails"
-                            class="w-full px-4 py-2 rounded-lg border @error('scheduleDetails') border-error @else border-gray-200 @enderror focus:outline-none focus:ring-2 focus:ring-brand"
+                            @class(['w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-brand transition-colors', 'border-error bg-error/5' => $errors->has('scheduleDetails'), 'border-gray-200' => !$errors->has('scheduleDetails')])
                             placeholder="e.g., Mon, Wed, Fri 10:00 AM"
                         >
                         @error('scheduleDetails')
-                            <p class="text-error text-xs mt-1">{{ $message }}</p>
+                            <p class="text-error text-xs mt-1 flex items-center gap-1" role="alert">
+                                <svg class="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                                {{ $message }}
+                            </p>
                         @enderror
                     </div>
 
+                    <p class="text-xs text-gray-400"><span class="text-error">*</span> Required fields</p>
+
+                    <!-- Draft indicator -->
+                    <div x-show="isDirty" x-cloak class="flex items-center gap-1.5 text-xs text-warning">
+                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><circle cx="10" cy="10" r="10"/></svg>
+                        Draft auto-saved
+                    </div>
+
                     <!-- Submit Button -->
-                    <div class="flex flex-col sm:flex-row gap-2 pt-4">
+                    <div class="flex flex-col sm:flex-row gap-2 pt-2">
                         <button
                             type="button"
                             wire:click="closeClassModal"
@@ -268,12 +343,21 @@
                         </button>
                         <button
                             type="submit"
-                            class="w-full sm:flex-1 px-4 py-2 bg-brand text-white rounded-lg font-semibold hover:bg-brand-hover transition-colors"
+                            wire:loading.attr="disabled"
+                            wire:target="store, update"
+                            class="w-full sm:flex-1 px-4 py-2 bg-brand text-white rounded-lg font-semibold hover:bg-brand-hover transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+                            x-on:click="clearDraft()"
                         >
+                            <svg wire:loading wire:target="store, update" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                            </svg>
                             @if($showCreateModal)
-                                Create
+                                <span wire:loading.remove wire:target="store">Create</span>
+                                <span wire:loading wire:target="store">Creating...</span>
                             @else
-                                Update
+                                <span wire:loading.remove wire:target="update">Update</span>
+                                <span wire:loading wire:target="update">Saving...</span>
                             @endif
                         </button>
                     </div>
