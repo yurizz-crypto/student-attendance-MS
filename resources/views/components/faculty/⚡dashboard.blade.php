@@ -55,6 +55,8 @@ new class extends Component {
             }
         }
 
+        $this->reviewingExcuse->student->notify(new \App\Notifications\ExcuseProcessedNotification($this->reviewingExcuse));
+
         session()->flash('status', 'Excuse has been ' . $status . '.');
         $this->closeReview();
     }
@@ -90,6 +92,9 @@ new class extends Component {
                 auth()->id(),
             ]);
             $session->update(['qr_code_data' => $qrData]);
+
+            $students = $class->enrollments()->with('student')->get()->pluck('student');
+            \Illuminate\Support\Facades\Notification::send($students, new \App\Notifications\SessionStartedNotification($session));
         }
 
         $this->generatedCode = $session->attendance_code;

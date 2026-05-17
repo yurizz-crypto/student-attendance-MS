@@ -5,10 +5,13 @@ namespace App\Console\Commands;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\Enrollment;
+use App\Models\User;
+use App\Notifications\MarkedAbsentNotification;
 use Carbon\Carbon;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Notification;
 
 #[Signature('attendance:close-expired')]
 #[Description('Close expired attendance sessions and mark unenrolled students as absent')]
@@ -58,6 +61,9 @@ class CloseExpiredSessions extends Command
 
                 if (! empty($recordsToInsert)) {
                     AttendanceRecord::insert($recordsToInsert);
+
+                    $users = User::whereIn('id', $absentStudentIds)->get();
+                    Notification::send($users, new MarkedAbsentNotification($session));
                 }
             }
         }

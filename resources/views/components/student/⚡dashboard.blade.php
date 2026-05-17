@@ -111,7 +111,7 @@ new class extends Component {
 
         $filePath = $this->excuseFile->store('excuses', 'public');
 
-        Excuse::create([
+        $excuse = Excuse::create([
             'student_id' => Auth::id(),
             'class_section_id' => $this->excuseClassId,
             'attendance_session_id' => $this->excuseSessionId,
@@ -120,6 +120,11 @@ new class extends Component {
             'file_path' => $filePath,
             'status' => 'pending',
         ]);
+
+        $faculty = $excuse->classSection->faculty;
+        if ($faculty) {
+            $faculty->notify(new \App\Notifications\ExcuseSubmittedNotification($excuse));
+        }
 
         $this->reset(['excuseClassId', 'excuseSessionId', 'excuseReason', 'excuseFile']);
         session()->flash('status', 'Excuse submitted successfully and is pending review.');

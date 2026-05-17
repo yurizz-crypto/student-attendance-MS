@@ -29,6 +29,15 @@
                         <x-nav-link :href="route('faculty.excuses')" :active="request()->routeIs('faculty.excuses')">
                             {{ __('Excuses') }}
                         </x-nav-link>
+                        <x-nav-link :href="route('faculty.analytics')" :active="request()->routeIs('faculty.analytics')">
+                            {{ __('Analytics') }}
+                        </x-nav-link>
+                    @endif
+
+                    @if(Auth::user()->role === 'student')
+                        <x-nav-link :href="route('student.analytics')" :active="request()->routeIs('student.analytics')">
+                            {{ __('Analytics') }}
+                        </x-nav-link>
                     @endif
 
                     @if(Auth::user()->role === 'admin')
@@ -39,7 +48,9 @@
                 </div>
             </div>
 
-            <div class="hidden sm:flex sm:items-center sm:ms-6">
+            <div class="hidden sm:flex sm:items-center sm:ms-6 sm:gap-4">
+                <livewire:notification-bell />
+
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
                         <button class="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-xl text-sm font-semibold text-navy bg-gray-50/50 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-1 transition-all duration-200">
@@ -72,7 +83,9 @@
                 </x-dropdown>
             </div>
 
-            <div class="-me-2 flex items-center sm:hidden">
+            <div class="-me-2 flex items-center sm:hidden gap-2">
+                <livewire:notification-bell />
+                
                 <button @click="open = ! open" class="inline-flex items-center justify-center p-2 rounded-xl text-gray-400 hover:text-brand hover:bg-brand/5 focus:outline-none focus:bg-brand/5 focus:text-brand transition duration-150 ease-in-out">
                     <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
                         <path :class="{'hidden': open, 'inline-flex': ! open }" class="inline-flex" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -99,6 +112,15 @@
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('faculty.excuses')" :active="request()->routeIs('faculty.excuses')">
                     {{ __('Excuses') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('faculty.analytics')" :active="request()->routeIs('faculty.analytics')">
+                    {{ __('Analytics') }}
+                </x-responsive-nav-link>
+            @endif
+
+            @if(Auth::user()->role === 'student')
+                <x-responsive-nav-link :href="route('student.analytics')" :active="request()->routeIs('student.analytics')">
+                    {{ __('Analytics') }}
                 </x-responsive-nav-link>
             @endif
 

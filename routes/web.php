@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\Faculty\AttendanceController;
+use App\Http\Controllers\Faculty\ExportController as FacultyExportController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Student\ExportController as StudentExportController;
 use App\Http\Controllers\Student\QrScanController;
 use Illuminate\Support\Facades\Route;
 
@@ -46,11 +48,18 @@ Route::middleware(['auth', 'verified', 'role:faculty'])
             return view('faculty.excuses');
         })->name('excuses');
 
+        Route::get('/analytics', function () {
+            return view('faculty.analytics');
+        })->name('analytics');
+
         Route::get('/classes/{classSection}/attendance', [AttendanceController::class, 'show'])
             ->name('attendance.show');
 
         Route::post('/classes/{classSection}/attendance', [AttendanceController::class, 'store'])
             ->name('attendance.store');
+
+        Route::get('/classes/{classSection}/export', [FacultyExportController::class, 'export'])
+            ->name('classes.export');
 
     });
 
@@ -59,8 +68,18 @@ Route::middleware(['auth', 'verified', 'role:student'])
     ->name('student.')
     ->group(function () {
 
+        Route::get('/dashboard', function () {
+            return view('student.dashboard');
+        })->name('dashboard');
+
+        Route::get('/analytics', function () {
+            return view('student.analytics');
+        })->name('analytics');
+
         Route::get('/qr-scan', [QrScanController::class, 'show'])->name('qr-scan.show');
         Route::post('/qr-scan', [QrScanController::class, 'scan'])->name('qr-scan.process');
+
+        Route::get('/export', [StudentExportController::class, 'export'])->name('export');
 
     });
 

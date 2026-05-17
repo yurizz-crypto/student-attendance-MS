@@ -81,6 +81,8 @@ new class extends Component {
             }
         }
 
+        $this->reviewingExcuse->student->notify(new \App\Notifications\ExcuseProcessedNotification($this->reviewingExcuse));
+
         session()->flash('status', 'Excuse has been ' . $status . '.');
         $this->closeReview();
     }
