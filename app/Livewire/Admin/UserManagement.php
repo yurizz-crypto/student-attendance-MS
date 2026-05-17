@@ -163,9 +163,22 @@ class UserManagement extends Component
             return;
         }
 
+        // Check if trying to delete own account
+        if (in_array(auth()->id(), $this->selectedIds)) {
+            $this->dispatch('swal:error', title: 'Error', message: 'You cannot delete your own account.');
+            return;
+        }
+
+        // Check if trying to delete other admin accounts (only admins can manage users)
+        $adminIds = User::where('role', 'admin')->whereIn('id', $this->selectedIds)->pluck('id')->toArray();
+        if (!empty($adminIds) && auth()->user()->role !== 'admin') {
+            $this->dispatch('swal:error', title: 'Error', message: 'You cannot delete admin accounts.');
+            return;
+        }
+
         $count = count($this->selectedIds);
         User::whereIn('id', $this->selectedIds)->delete();
-        AuditService::log('bulk_delete_users', null, ['count' => $count, 'ids' => $this->selectedIds]);
+        AuditService::log('bulk_delete_users', User::class, null, ['count' => $count, 'ids' => $this->selectedIds]);
         $this->clearSelection();
         $this->dispatch('swal:success', message: "{$count} user(s) moved to trash.");
     }
@@ -178,7 +191,7 @@ class UserManagement extends Component
 
         $count = count($this->selectedIds);
         User::whereIn('id', $this->selectedIds)->update(['status' => $status]);
-        AuditService::log('bulk_status_update', null, ['count' => $count, 'status' => $status, 'ids' => $this->selectedIds]);
+        AuditService::log('bulk_status_update', User::class, null, ['count' => $count, 'status' => $status, 'ids' => $this->selectedIds]);
         $this->clearSelection();
         $this->dispatch('swal:success', message: "{$count} user(s) set to {$status}.");
     }
