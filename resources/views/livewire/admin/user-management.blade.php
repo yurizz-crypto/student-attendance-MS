@@ -101,6 +101,18 @@
                             <td class="px-6 py-4 text-gray-700">{{ $user->created_at->format('M d, Y') }}</td>
                             <td class="px-6 py-4">
                                 <div class="flex items-center justify-center gap-2">
+                                    @if($user->role === 'student' && !empty($user->device_fingerprint))
+                                        <button
+                                            wire:click="resetDevice({{ $user->id }})"
+                                            wire:confirm="Are you sure you want to reset the device binding for this student? They will need to log in again on their device to register it."
+                                            class="p-2 text-warning hover:bg-warning/10 rounded-lg transition-colors"
+                                            title="Reset Device Binding"
+                                        >
+                                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                            </svg>
+                                        </button>
+                                    @endif
                                     <button
                                         wire:click="openEditModal({{ $user->id }})"
                                         class="p-2 text-info hover:bg-info/10 rounded-lg transition-colors"

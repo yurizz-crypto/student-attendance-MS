@@ -4,34 +4,46 @@ namespace App\Livewire\Admin;
 
 use App\Models\User;
 use App\Services\AuditService;
+use Illuminate\Support\Facades\Hash;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 class UserManagement extends Component
 {
     use WithPagination;
 
     public $searchTerm = '';
+
     public $filterRole = '';
+
     public $sortField = 'created_at';
+
     public $sortDirection = 'desc';
 
     // Form fields
     public $userId = null;
+
     public $firstName = '';
+
     public $middleName = '';
+
     public $lastName = '';
+
     public $identityId = '';
+
     public $email = '';
+
     public $password = '';
+
     public $role = 'student';
 
     // Modal states
     public $showAddModal = false;
+
     public $showEditModal = false;
+
     public $showDeleteModal = false;
+
     public $deleteConfirmUserId = null;
 
     public function updatedSearchTerm()
@@ -58,6 +70,7 @@ class UserManagement extends Component
     {
         return User::when($this->searchTerm, function ($query) {
             $search = $this->searchTerm;
+
             return $query->where(function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
                     ->orWhere('middle_name', 'like', "%{$search}%")
@@ -197,7 +210,7 @@ class UserManagement extends Component
                 $changedFields[$key] = '***changed***';
             }
         }
-        if (!empty($changedFields)) {
+        if (! empty($changedFields)) {
             AuditService::logUpdated($user, $originalValues, $changedFields);
         }
 
@@ -213,6 +226,7 @@ class UserManagement extends Component
         if ($user->id === auth()->id()) {
             $this->dispatch('error', message: 'Cannot delete your own account');
             $this->closeDeleteModal();
+
             return;
         }
 
@@ -224,6 +238,29 @@ class UserManagement extends Component
         $this->dispatch('user-deleted', message: 'User deleted successfully');
         $this->closeDeleteModal();
         $this->resetPage();
+    }
+
+    public function resetDevice($userId)
+    {
+        $user = User::findOrFail($userId);
+
+        if ($user->role !== 'student') {
+            $this->dispatch('error', message: 'Device reset is only applicable to students.');
+
+            return;
+        }
+
+        $user->update(['device_fingerprint' => null]);
+
+        AuditService::log(
+            'device_reset',
+            User::class,
+            $user->id,
+            null,
+            'Admin reset device binding for student '.$user->first_name.' '.$user->last_name
+        );
+
+        $this->dispatch('user-updated', message: 'Device binding has been reset.');
     }
 
     public function resetForm()
