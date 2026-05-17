@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\Faculty;
 
+use App\Exports\FacultyClassExport;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
 use App\Models\ClassSection;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ExportController extends Controller
 {
@@ -65,40 +67,11 @@ class ExportController extends Controller
             ]);
 
             return $pdf->download($filename.'.pdf');
+        } elseif ($format === 'excel') {
+            return Excel::download(new FacultyClassExport($studentStats), $filename.'.xlsx', \Maatwebsite\Excel\Excel::XLSX);
         }
 
-        // Default to CSV
-        $headers = [
-            'Content-type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename={$filename}.csv",
-            'Pragma' => 'no-cache',
-            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
-            'Expires' => '0',
-        ];
-
-        $columns = ['Student ID', 'Name', 'Email', 'Total Sessions', 'Present', 'Late', 'Excused', 'Absences', 'Attendance Rate'];
-
-        $callback = function () use ($studentStats, $columns) {
-            $file = fopen('php://output', 'w');
-            fputcsv($file, $columns);
-
-            foreach ($studentStats as $stat) {
-                fputcsv($file, [
-                    $stat['id'],
-                    $stat['name'],
-                    $stat['email'],
-                    $stat['total_sessions'],
-                    $stat['present'],
-                    $stat['late'],
-                    $stat['excused'],
-                    $stat['absences'],
-                    $stat['rate'],
-                ]);
-            }
-
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        // Default to CSV using Maatwebsite Excel
+        return Excel::download(new FacultyClassExport($studentStats), $filename.'.csv', \Maatwebsite\Excel\Excel::CSV);
     }
 }

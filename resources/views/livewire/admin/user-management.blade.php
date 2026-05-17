@@ -559,50 +559,111 @@
                     </button>
                 </div>
 
-                <form wire:submit="importUsers" class="p-6 space-y-4">
-                    <div class="bg-blue-50 text-blue-800 p-4 rounded-lg text-sm mb-4 border border-blue-100">
-                        <p class="font-bold mb-1">CSV Format Required:</p>
-                        <p class="font-mono text-xs mb-2 break-all">first_name,middle_name,last_name,identity_id,email,role,password</p>
-                        <ul class="list-disc pl-4 space-y-1 text-xs">
-                            <li>Includes header row</li>
-                            <li>Role must be: admin, faculty, or student</li>
-                            <li>Existing emails/identity IDs will be skipped</li>
-                        </ul>
-                    </div>
+                <div class="p-6 space-y-4">
+                    @if($importStep === 1)
+                        <form wire:submit="previewImport" class="space-y-4">
+                            <div class="bg-blue-50 text-blue-800 p-4 rounded-lg text-sm mb-4 border border-blue-100">
+                                <p class="font-bold mb-1">Excel/CSV Format Required:</p>
+                                <p class="font-mono text-xs mb-2 break-all">first_name,middle_name,last_name,identity_id,email,role,password</p>
+                                <ul class="list-disc pl-4 space-y-1 text-xs">
+                                    <li>Includes header row</li>
+                                    <li>Role must be: admin, faculty, or student</li>
+                                    <li>Existing emails/identity IDs will be skipped</li>
+                                </ul>
+                            </div>
 
-                    <div>
-                        <label class="block text-sm font-semibold text-navy mb-2">Upload CSV File</label>
-                        <input
-                            type="file"
-                            wire:model="importFile"
-                            accept=".csv"
-                            class="w-full px-4 py-2 rounded-lg border @error('importFile') border-error @else border-gray-200 @enderror focus:outline-none focus:ring-2 focus:ring-brand"
-                        >
-                        <div wire:loading wire:target="importFile" class="text-sm text-gray-500 mt-2">Uploading...</div>
-                        @error('importFile')
-                            <p class="text-error text-xs mt-1">{{ $message }}</p>
-                        @enderror
-                    </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-navy mb-2">Upload Excel or CSV File</label>
+                                <input
+                                    type="file"
+                                    wire:model="importFile"
+                                    accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                                    class="w-full px-4 py-2 rounded-lg border @error('importFile') border-error @else border-gray-200 @enderror focus:outline-none focus:ring-2 focus:ring-brand"
+                                >
+                                <div wire:loading wire:target="importFile" class="text-sm text-gray-500 mt-2">Uploading...</div>
+                                @error('importFile')
+                                    <p class="text-error text-xs mt-1">{{ $message }}</p>
+                                @enderror
+                            </div>
 
-                    <div class="flex gap-3 pt-4">
-                        <button
-                            type="button"
-                            wire:click="closeImportModal"
-                            class="flex-1 px-4 py-2 rounded-lg border border-gray-200 text-navy font-semibold hover:bg-gray-50 transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            class="flex-1 px-4 py-2 rounded-lg bg-brand text-white font-semibold hover:bg-brand-hover transition-colors flex items-center justify-center gap-2"
-                            wire:loading.attr="disabled"
-                            wire:target="importUsers"
-                        >
-                            <span wire:loading.remove wire:target="importUsers">Import</span>
-                            <span wire:loading wire:target="importUsers">Importing...</span>
-                        </button>
-                    </div>
-                </form>
+                            <div class="flex gap-3 pt-4">
+                                <button
+                                    type="button"
+                                    wire:click="closeImportModal"
+                                    class="flex-1 px-4 py-2 rounded-lg border border-gray-200 text-navy font-semibold hover:bg-gray-50 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    class="flex-1 px-4 py-2 rounded-lg bg-brand text-white font-semibold hover:bg-brand-hover transition-colors flex items-center justify-center gap-2"
+                                    wire:loading.attr="disabled"
+                                    wire:target="previewImport"
+                                >
+                                    <span wire:loading.remove wire:target="previewImport">Preview</span>
+                                    <span wire:loading wire:target="previewImport">Processing...</span>
+                                </button>
+                            </div>
+                        </form>
+                    @elseif($importStep === 2)
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between p-4 rounded-lg border border-gray-200 bg-gray-50">
+                                <div>
+                                    <h4 class="font-bold text-gray-900">Ready to Import</h4>
+                                    <p class="text-sm text-gray-600">{{ $totalValidRows }} rows are valid and will be imported.</p>
+                                </div>
+                                <div class="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center">
+                                    <span class="text-success font-bold text-lg">{{ $totalValidRows }}</span>
+                                </div>
+                            </div>
+
+                            @if(count($invalidRows) > 0)
+                                <div class="flex items-center justify-between p-4 rounded-lg border border-error bg-error/5">
+                                    <div>
+                                        <h4 class="font-bold text-error">Errors Found</h4>
+                                        <p class="text-sm text-gray-600">{{ count($invalidRows) }} rows have errors or are duplicates.</p>
+                                    </div>
+                                    <button 
+                                        wire:click="downloadErrorReport"
+                                        class="px-3 py-1.5 bg-white border border-error text-error rounded font-semibold text-xs hover:bg-error hover:text-white transition-colors"
+                                    >
+                                        Download Report
+                                    </button>
+                                </div>
+                            @endif
+
+                            <div class="flex gap-3 pt-4">
+                                <button
+                                    type="button"
+                                    wire:click="closeImportModal"
+                                    class="flex-1 px-4 py-2 rounded-lg border border-gray-200 text-navy font-semibold hover:bg-gray-50 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    wire:click="$set('importStep', 3)"
+                                    class="flex-1 px-4 py-2 rounded-lg bg-brand text-white font-semibold hover:bg-brand-hover transition-colors"
+                                    @if($totalValidRows === 0) disabled @endif
+                                >
+                                    Start Import
+                                </button>
+                            </div>
+                        </div>
+                    @elseif($importStep === 3)
+                        <div class="space-y-6 py-6" wire:poll.500ms="processImportChunk">
+                            <div class="text-center">
+                                <h4 class="text-lg font-bold text-navy mb-2">Importing Users...</h4>
+                                <p class="text-sm text-gray-600 mb-6">Please do not close this window.</p>
+                                
+                                <div class="w-full bg-gray-200 rounded-full h-4 mb-2">
+                                    <div class="bg-brand h-4 rounded-full transition-all duration-300" style="width: {{ $totalValidRows > 0 ? ($importProgress / $totalValidRows) * 100 : 0 }}%"></div>
+                                </div>
+                                <p class="text-sm font-semibold text-gray-700">{{ $importProgress }} / {{ $totalValidRows }} rows processed</p>
+                            </div>
+                        </div>
+                    @endif
+                </div>
             </div>
         </div>
     @endif

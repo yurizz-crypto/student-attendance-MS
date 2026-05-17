@@ -6,6 +6,8 @@ use App\Http\Controllers\Faculty\ExportController as FacultyExportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Student\ExportController as StudentExportController;
 use App\Http\Controllers\Student\QrScanController;
+use App\Livewire\Admin\Reports\Index;
+use App\Livewire\Admin\UserManagement;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -95,9 +97,8 @@ Route::prefix('admin')
     ->group(function () {
 
         Route::middleware(['auth', 'verified', 'otp', 'log_access', 'permission:manage_users'])->group(function () {
-            Route::get('/users', function () {
-                return view('admin.users');
-            })->name('users');
+            Route::get('/users', UserManagement::class)->name('users');
+            Route::get('/reports', Index::class)->name('reports');
         });
 
         // Other admin routes can use a general admin permission, or just require admin role

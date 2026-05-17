@@ -2,12 +2,15 @@
 
 namespace App\Livewire\Admin;
 
+use App\Exports\UserImportErrorExport;
+use App\Imports\UsersImport;
 use App\Models\User;
 use App\Services\AuditService;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
+use Maatwebsite\Excel\Facades\Excel;
 
 class UserManagement extends Component
 {
@@ -52,6 +55,16 @@ class UserManagement extends Component
     public $showImportModal = false;
 
     public $importFile;
+
+    public $importStep = 1;
+
+    public $validRows = [];
+
+    public $invalidRows = [];
+
+    public $importProgress = 0;
+
+    public $totalValidRows = 0;
 
     public $deleteConfirmUserId = null;
 
@@ -146,6 +159,11 @@ class UserManagement extends Component
     public function openImportModal()
     {
         $this->importFile = null;
+        $this->importStep = 1;
+        $this->validRows = [];
+        $this->invalidRows = [];
+        $this->importProgress = 0;
+        $this->totalValidRows = 0;
         $this->showImportModal = true;
     }
 
@@ -153,76 +171,134 @@ class UserManagement extends Component
     {
         $this->showImportModal = false;
         $this->importFile = null;
+        $this->importStep = 1;
+        $this->validRows = [];
+        $this->invalidRows = [];
     }
 
-    public function importUsers()
+    public function previewImport()
     {
         $this->validate([
-            'importFile' => 'required|file|mimes:csv,txt|max:5120', // Max 5MB
+            'importFile' => 'required|file|mimes:csv,txt,xlsx,xls|max:5120', // Max 5MB
         ]);
 
-        $filePath = $this->importFile->getRealPath();
-        $file = fopen($filePath, 'r');
-        $headers = fgetcsv($file);
+        $rows = Excel::toArray(new UsersImport, $this->importFile)[0];
 
-        $importedCount = 0;
-        $skippedCount = 0;
+        $this->validRows = [];
+        $this->invalidRows = [];
 
-        while (($row = fgetcsv($file)) !== false) {
-            // Check if row matches header count
-            if (count($row) !== count($headers)) {
-                $skippedCount++;
+        foreach ($rows as $index => $row) {
+            $rowIndex = $index + 2; // +1 for 0-index, +1 for header
 
-                continue;
-            }
-
-            $data = array_combine($headers, $row);
-
-            // Basic validation for required fields
-            if (empty($data['first_name']) || empty($data['last_name']) || empty($data['email']) || empty($data['role'])) {
-                $skippedCount++;
+            // Check if required fields exist
+            if (empty($row['first_name']) || empty($row['last_name']) || empty($row['email']) || empty($row['role'])) {
+                $this->invalidRows[] = [
+                    'row_index' => $rowIndex,
+                    'data' => $row,
+                    'error' => 'Missing required fields (first_name, last_name, email, role).',
+                ];
 
                 continue;
             }
 
-            // Check if email or identity_id already exists
-            $exists = User::where('email', $data['email'])
-                ->orWhere('identity_id', $data['identity_id'] ?? '')
-                ->exists();
+            // Check role validity
+            if (! in_array(strtolower($row['role']), ['admin', 'faculty', 'student'])) {
+                $this->invalidRows[] = [
+                    'row_index' => $rowIndex,
+                    'data' => $row,
+                    'error' => 'Invalid role. Must be admin, faculty, or student.',
+                ];
+
+                continue;
+            }
+
+            // Check duplicates in DB
+            $exists = User::where('email', $row['email'])
+                ->orWhere(function ($query) use ($row) {
+                    if (! empty($row['identity_id'])) {
+                        $query->where('identity_id', $row['identity_id']);
+                    } else {
+                        // This condition will always be false, preventing empty string matches
+                        $query->whereRaw('1 = 0');
+                    }
+                })->exists();
 
             if ($exists) {
-                $skippedCount++;
+                $this->invalidRows[] = [
+                    'row_index' => $rowIndex,
+                    'data' => $row,
+                    'error' => 'Duplicate email or identity_id in database.',
+                ];
 
                 continue;
             }
 
-            User::create([
-                'first_name' => $data['first_name'],
-                'middle_name' => $data['middle_name'] ?? null,
-                'last_name' => $data['last_name'],
-                'identity_id' => $data['identity_id'] ?? null,
-                'email' => $data['email'],
-                'password' => Hash::make($data['password'] ?? 'password123'),
-                'role' => in_array($data['role'], ['admin', 'faculty', 'student']) ? $data['role'] : 'student',
-            ]);
+            // Check duplicates within the file itself
+            $duplicateInFile = collect($this->validRows)->contains(function ($validRow) use ($row) {
+                return $validRow['email'] === $row['email'] || (! empty($row['identity_id']) && $validRow['identity_id'] === $row['identity_id']);
+            });
 
-            $importedCount++;
+            if ($duplicateInFile) {
+                $this->invalidRows[] = [
+                    'row_index' => $rowIndex,
+                    'data' => $row,
+                    'error' => 'Duplicate email or identity_id within the file.',
+                ];
+
+                continue;
+            }
+
+            $this->validRows[] = $row;
         }
 
-        fclose($file);
+        $this->totalValidRows = count($this->validRows);
+        $this->importStep = 2; // Move to preview step
+    }
 
+    public function processImportChunk()
+    {
+        if ($this->importProgress >= $this->totalValidRows) {
+            $this->finalizeImport();
+
+            return;
+        }
+
+        $chunkSize = 50;
+        $chunk = array_slice($this->validRows, $this->importProgress, $chunkSize);
+
+        foreach ($chunk as $row) {
+            User::create([
+                'first_name' => $row['first_name'],
+                'middle_name' => $row['middle_name'] ?? null,
+                'last_name' => $row['last_name'],
+                'identity_id' => $row['identity_id'] ?? null,
+                'email' => $row['email'],
+                'password' => Hash::make($row['password'] ?? 'password123'),
+                'role' => strtolower($row['role']),
+            ]);
+            $this->importProgress++;
+        }
+    }
+
+    public function finalizeImport()
+    {
         AuditService::log(
             'imported',
             User::class,
             null,
-            ['imported_count' => $importedCount, 'skipped_count' => $skippedCount],
-            "Admin imported {$importedCount} users via CSV (Skipped {$skippedCount} rows)"
+            ['imported_count' => $this->totalValidRows, 'skipped_count' => count($this->invalidRows)],
+            "Admin imported {$this->totalValidRows} users via Excel/CSV (Skipped ".count($this->invalidRows).' rows)'
         );
 
         $this->closeImportModal();
         $this->resetPage();
 
-        $this->dispatch('swal:success', title: 'Import Complete', message: "Successfully imported {$importedCount} users. Skipped {$skippedCount} invalid or duplicate rows.");
+        $this->dispatch('swal:success', title: 'Import Complete', message: "Successfully imported {$this->totalValidRows} users. Skipped ".count($this->invalidRows).' invalid rows.');
+    }
+
+    public function downloadErrorReport()
+    {
+        return Excel::download(new UserImportErrorExport($this->invalidRows), 'import_errors_'.now()->format('Ymd_His').'.csv', \Maatwebsite\Excel\Excel::CSV);
     }
 
     public function store()
