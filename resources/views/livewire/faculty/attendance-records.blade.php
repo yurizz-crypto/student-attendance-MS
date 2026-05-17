@@ -297,7 +297,14 @@
                                 <div class="border border-gray-200 rounded-lg p-4 space-y-3">
                                     <div class="flex items-center justify-between">
                                         <div>
-                                            <div class="font-semibold text-gray-900">{{ $record['student_name'] }}</div>
+                                            <div class="font-semibold text-gray-900 flex items-center gap-2">
+                                                {{ $record['student_name'] }}
+                                                @if(isset($record['student_status']) && $record['student_status'] !== 'active')
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider {{ $record['student_status'] === 'suspended' ? 'bg-error/10 text-error' : 'bg-gray-200 text-gray-700' }}">
+                                                        {{ $record['student_status'] }}
+                                                    </span>
+                                                @endif
+                                            </div>
                                             <div class="text-xs text-gray-500">{{ $record['student_identity'] }}</div>
                                         </div>
                                     </div>

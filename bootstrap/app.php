@@ -1,9 +1,12 @@
 <?php
 
-use Illuminate\Foundation\Application;
+use App\Http\Middleware\EnsureOtpIsVerified;
+use App\Http\Middleware\PermissionMiddleware;
+use App\Http\Middleware\RoleMiddleware;
+use Illuminate\Foundation\Application; // Add this import
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use App\Http\Middleware\RoleMiddleware; // Add this import
+use Illuminate\Session\Middleware\AuthenticateSession;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -12,8 +15,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->web(append: [
+            AuthenticateSession::class,
+        ]);
+
         $middleware->alias([
             'role' => RoleMiddleware::class,
+            'permission' => PermissionMiddleware::class,
+            'otp' => EnsureOtpIsVerified::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

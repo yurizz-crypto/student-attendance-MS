@@ -6,11 +6,12 @@ use App\Models\User;
 use App\Services\AuditService;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 class UserManagement extends Component
 {
-    use WithPagination;
+    use WithFileUploads, WithPagination;
 
     public $searchTerm = '';
 
@@ -37,12 +38,20 @@ class UserManagement extends Component
 
     public $role = 'student';
 
+    public $status = 'active';
+
+    public $permissions = [];
+
     // Modal states
     public $showAddModal = false;
 
     public $showEditModal = false;
 
     public $showDeleteModal = false;
+
+    public $showImportModal = false;
+
+    public $importFile;
 
     public $deleteConfirmUserId = null;
 
@@ -110,6 +119,8 @@ class UserManagement extends Component
         $this->email = $user->email;
         $this->password = '';
         $this->role = $user->role;
+        $this->status = $user->status ?? 'active';
+        $this->permissions = $user->permissions ?? [];
 
         $this->showEditModal = true;
     }
@@ -132,6 +143,88 @@ class UserManagement extends Component
         $this->deleteConfirmUserId = null;
     }
 
+    public function openImportModal()
+    {
+        $this->importFile = null;
+        $this->showImportModal = true;
+    }
+
+    public function closeImportModal()
+    {
+        $this->showImportModal = false;
+        $this->importFile = null;
+    }
+
+    public function importUsers()
+    {
+        $this->validate([
+            'importFile' => 'required|file|mimes:csv,txt|max:5120', // Max 5MB
+        ]);
+
+        $filePath = $this->importFile->getRealPath();
+        $file = fopen($filePath, 'r');
+        $headers = fgetcsv($file);
+
+        $importedCount = 0;
+        $skippedCount = 0;
+
+        while (($row = fgetcsv($file)) !== false) {
+            // Check if row matches header count
+            if (count($row) !== count($headers)) {
+                $skippedCount++;
+
+                continue;
+            }
+
+            $data = array_combine($headers, $row);
+
+            // Basic validation for required fields
+            if (empty($data['first_name']) || empty($data['last_name']) || empty($data['email']) || empty($data['role'])) {
+                $skippedCount++;
+
+                continue;
+            }
+
+            // Check if email or identity_id already exists
+            $exists = User::where('email', $data['email'])
+                ->orWhere('identity_id', $data['identity_id'] ?? '')
+                ->exists();
+
+            if ($exists) {
+                $skippedCount++;
+
+                continue;
+            }
+
+            User::create([
+                'first_name' => $data['first_name'],
+                'middle_name' => $data['middle_name'] ?? null,
+                'last_name' => $data['last_name'],
+                'identity_id' => $data['identity_id'] ?? null,
+                'email' => $data['email'],
+                'password' => Hash::make($data['password'] ?? 'password123'),
+                'role' => in_array($data['role'], ['admin', 'faculty', 'student']) ? $data['role'] : 'student',
+            ]);
+
+            $importedCount++;
+        }
+
+        fclose($file);
+
+        AuditService::log(
+            'imported',
+            User::class,
+            null,
+            ['imported_count' => $importedCount, 'skipped_count' => $skippedCount],
+            "Admin imported {$importedCount} users via CSV (Skipped {$skippedCount} rows)"
+        );
+
+        $this->closeImportModal();
+        $this->resetPage();
+
+        $this->dispatch('swal:success', title: 'Import Complete', message: "Successfully imported {$importedCount} users. Skipped {$skippedCount} invalid or duplicate rows.");
+    }
+
     public function store()
     {
         $validated = $this->validate([
@@ -142,6 +235,8 @@ class UserManagement extends Component
             'email' => 'required|email|max:255|unique:users,email',
             'password' => 'required|string|min:8',
             'role' => 'required|in:admin,faculty,student',
+            'status' => 'required|in:active,inactive,suspended',
+            'permissions' => 'nullable|array',
         ]);
 
         $user = User::create([
@@ -152,6 +247,8 @@ class UserManagement extends Component
             'email' => $this->email,
             'password' => Hash::make($this->password),
             'role' => $this->role,
+            'status' => $this->status,
+            'permissions' => $this->permissions,
         ]);
 
         // Log the creation
@@ -162,6 +259,8 @@ class UserManagement extends Component
             'identity_id' => $user->identity_id,
             'email' => $user->email,
             'role' => $user->role,
+            'status' => $user->status,
+            'permissions' => $user->permissions,
         ]);
 
         $this->dispatch('user-created', message: 'User created successfully');
@@ -179,6 +278,8 @@ class UserManagement extends Component
             'email' => "required|email|max:255|unique:users,email,{$this->userId}",
             'password' => 'nullable|string|min:8',
             'role' => 'required|in:admin,faculty,student',
+            'status' => 'required|in:active,inactive,suspended',
+            'permissions' => 'nullable|array',
         ]);
 
         $user = User::findOrFail($this->userId);
@@ -193,6 +294,8 @@ class UserManagement extends Component
             'identity_id' => $this->identityId,
             'email' => $this->email,
             'role' => $this->role,
+            'status' => $this->status,
+            'permissions' => $this->permissions,
         ];
 
         if ($this->password) {
@@ -273,6 +376,8 @@ class UserManagement extends Component
         $this->email = '';
         $this->password = '';
         $this->role = 'student';
+        $this->status = 'active';
+        $this->permissions = [];
         $this->resetErrorBag();
     }
 

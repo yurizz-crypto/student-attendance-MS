@@ -9,6 +9,7 @@ use App\Policies\FacultyPolicy;
 use App\Policies\UserPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -27,6 +28,14 @@ class AppServiceProvider extends ServiceProvider
     {
         // Register authorization policies
         $this->registerPolicies();
+
+        Password::defaults(function () {
+            return Password::min(8)
+                ->mixedCase()
+                ->numbers()
+                ->symbols()
+                ->uncompromised();
+        });
     }
 
     /**

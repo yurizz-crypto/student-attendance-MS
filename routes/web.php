@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\OtpController;
 use App\Http\Controllers\Faculty\AttendanceController;
 use App\Http\Controllers\Faculty\ExportController as FacultyExportController;
 use App\Http\Controllers\ProfileController;
@@ -18,6 +19,12 @@ Route::get('/', function () {
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/otp/verify', [OtpController::class, 'show'])->name('otp.verify');
+    Route::post('/otp/verify', [OtpController::class, 'store'])->name('otp.store');
+    Route::post('/otp/resend', [OtpController::class, 'resend'])->name('otp.resend');
+});
+
+Route::middleware(['auth', 'verified', 'otp'])->group(function () {
 
     Route::get('/dashboard', function () {
         return view('dashboard');
@@ -31,7 +38,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 });
 
-Route::middleware(['auth', 'verified', 'role:faculty'])
+Route::middleware(['auth', 'verified', 'otp', 'role:faculty'])
     ->prefix('faculty')
     ->name('faculty.')
     ->group(function () {
@@ -63,7 +70,7 @@ Route::middleware(['auth', 'verified', 'role:faculty'])
 
     });
 
-Route::middleware(['auth', 'verified', 'role:student'])
+Route::middleware(['auth', 'verified', 'otp', 'role:student'])
     ->prefix('student')
     ->name('student.')
     ->group(function () {
@@ -83,18 +90,22 @@ Route::middleware(['auth', 'verified', 'role:student'])
 
     });
 
-Route::middleware(['auth', 'verified', 'role:admin'])
-    ->prefix('admin')
+Route::prefix('admin')
     ->name('admin.')
     ->group(function () {
 
-        Route::get('/users', function () {
-            return view('admin.users');
-        })->name('users');
+        Route::middleware(['auth', 'verified', 'otp', 'permission:manage_users'])->group(function () {
+            Route::get('/users', function () {
+                return view('admin.users');
+            })->name('users');
+        });
 
-        Route::get('/audit-logs', function () {
-            return view('admin.audit-logs');
-        })->name('audit-logs');
+        // Other admin routes can use a general admin permission, or just require admin role
+        Route::middleware(['auth', 'verified', 'otp', 'role:admin'])->group(function () {
+            Route::get('/audit-logs', function () {
+                return view('admin.audit-logs');
+            })->name('audit-logs');
+        });
 
     });
 

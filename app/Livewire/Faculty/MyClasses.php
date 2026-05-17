@@ -10,11 +10,12 @@ use App\Models\User;
 use App\Services\AuditService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 class MyClasses extends Component
 {
-    use WithPagination;
+    use WithFileUploads, WithPagination;
 
     public $searchTerm = '';
 
@@ -48,6 +49,10 @@ class MyClasses extends Component
     public $showDeleteModal = false;
 
     public $showEnrollModal = false;
+
+    public $showImportModal = false;
+
+    public $importFile;
 
     public $deleteConfirmClassId = null;
 
@@ -110,6 +115,133 @@ class MyClasses extends Component
     {
         $this->showCreateModal = false;
         $this->resetForm();
+    }
+
+    public function openImportModal()
+    {
+        $this->importFile = null;
+        $this->showImportModal = true;
+    }
+
+    public function closeImportModal()
+    {
+        $this->showImportModal = false;
+        $this->importFile = null;
+    }
+
+    public function importClasses()
+    {
+        $this->validate([
+            'importFile' => 'required|file|mimes:csv,txt|max:5120', // Max 5MB
+        ]);
+
+        $activeSemester = Semester::where('faculty_id', Auth::id())
+            ->where('is_active', true)
+            ->first();
+
+        if (! $activeSemester) {
+            $this->addError('general', 'You must create an active semester first before importing classes.');
+
+            return;
+        }
+
+        $filePath = $this->importFile->getRealPath();
+        $file = fopen($filePath, 'r');
+        $headers = fgetcsv($file);
+
+        $classesCreated = 0;
+        $studentsEnrolled = 0;
+        $skippedRows = 0;
+
+        // Group rows by class to process unique classes first, then enrollments
+        $classesData = [];
+
+        while (($row = fgetcsv($file)) !== false) {
+            if (count($row) !== count($headers)) {
+                $skippedRows++;
+
+                continue;
+            }
+
+            $data = array_combine($headers, $row);
+
+            if (empty($data['subject_name']) || empty($data['class_name']) || empty($data['student_identity_id'])) {
+                $skippedRows++;
+
+                continue;
+            }
+
+            $classKey = $data['subject_name'].'|'.$data['class_name'].'|'.($data['schedule_details'] ?? '');
+
+            if (! isset($classesData[$classKey])) {
+                $classesData[$classKey] = [
+                    'subject_name' => $data['subject_name'],
+                    'class_name' => $data['class_name'],
+                    'schedule_details' => $data['schedule_details'] ?? '',
+                    'student_ids' => [],
+                ];
+            }
+
+            $classesData[$classKey]['student_ids'][] = $data['student_identity_id'];
+        }
+
+        fclose($file);
+
+        foreach ($classesData as $classGroup) {
+            // Auto-create or find subject
+            $subject = Subject::firstOrCreate(
+                ['name' => $classGroup['subject_name']],
+                ['code' => strtoupper(substr(str_replace(' ', '', $classGroup['subject_name']), 0, 5)).'-'.rand(100, 999)]
+            );
+
+            // Create or find class
+            $class = ClassSection::firstOrCreate([
+                'subject_id' => $subject->id,
+                'semester_id' => $activeSemester->id,
+                'faculty_id' => Auth::id(),
+                'name' => $classGroup['class_name'],
+            ], [
+                'schedule_details' => $classGroup['schedule_details'],
+            ]);
+
+            if ($class->wasRecentlyCreated) {
+                $classesCreated++;
+            }
+
+            // Enroll students
+            foreach ($classGroup['student_ids'] as $identityId) {
+                $student = User::where('identity_id', $identityId)->where('role', 'student')->first();
+                if ($student) {
+                    $enrollment = Enrollment::firstOrCreate([
+                        'class_section_id' => $class->id,
+                        'student_id' => $student->id,
+                    ], [
+                        'status' => 'active',
+                    ]);
+
+                    if ($enrollment->wasRecentlyCreated) {
+                        $studentsEnrolled++;
+                    } else {
+                        $skippedRows++; // Already enrolled
+                    }
+                } else {
+                    $skippedRows++; // Student not found
+                }
+            }
+        }
+
+        AuditService::log(
+            'imported',
+            ClassSection::class,
+            null,
+            ['classes_created' => $classesCreated, 'students_enrolled' => $studentsEnrolled],
+            "Faculty imported {$classesCreated} classes and enrolled {$studentsEnrolled} students via CSV"
+        );
+
+        $this->closeImportModal();
+        $this->resetPage();
+
+        $this->dispatch('swal:success', title: 'Import Complete', message: "Created {$classesCreated} new classes and successfully enrolled {$studentsEnrolled} students. Skipped {$skippedRows} invalid or duplicate rows.");
     }
 
     public function openManageSemesters()

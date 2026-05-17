@@ -40,10 +40,13 @@
                         </x-nav-link>
                     @endif
 
-                    @if(Auth::user()->role === 'admin')
+                    @if(Auth::user()->role === 'admin' || Auth::user()->hasPermission('manage_users'))
                         <x-nav-link :href="route('admin.users')" :active="request()->routeIs('admin.users')">
                             {{ __('Manage Users') }}
                         </x-nav-link>
+                    @endif
+                    
+                    @if(Auth::user()->role === 'admin')
                         <x-nav-link :href="route('admin.audit-logs')" :active="request()->routeIs('admin.audit-logs')">
                             {{ __('Audit Logs') }}
                         </x-nav-link>
@@ -57,9 +60,13 @@
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
                         <button class="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-xl text-sm font-semibold text-navy bg-gray-50/50 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-1 transition-all duration-200">
-                            <div class="w-7 h-7 rounded-lg bg-brand/10 text-brand flex items-center justify-center font-bold text-xs">
-                                {{ strtoupper(substr(Auth::user()->first_name, 0, 1) . substr(Auth::user()->last_name, 0, 1)) }}
-                            </div>
+                            @if(Auth::user()->avatar_path)
+                                <img src="{{ asset('storage/' . Auth::user()->avatar_path) }}" alt="Avatar" class="w-7 h-7 rounded-lg object-cover">
+                            @else
+                                <div class="w-7 h-7 rounded-lg bg-brand/10 text-brand flex items-center justify-center font-bold text-xs">
+                                    {{ strtoupper(substr(Auth::user()->first_name, 0, 1) . substr(Auth::user()->last_name, 0, 1)) }}
+                                </div>
+                            @endif
                             
                             <div class="hidden md:block">{{ Auth::user()->first_name }}</div>
 
@@ -127,10 +134,13 @@
                 </x-responsive-nav-link>
             @endif
 
-            @if(Auth::user()->role === 'admin')
+            @if(Auth::user()->role === 'admin' || Auth::user()->hasPermission('manage_users'))
                 <x-responsive-nav-link :href="route('admin.users')" :active="request()->routeIs('admin.users')">
                     {{ __('Manage Users') }}
                 </x-responsive-nav-link>
+            @endif
+            
+            @if(Auth::user()->role === 'admin')
                 <x-responsive-nav-link :href="route('admin.audit-logs')" :active="request()->routeIs('admin.audit-logs')">
                     {{ __('Audit Logs') }}
                 </x-responsive-nav-link>
@@ -139,9 +149,13 @@
 
         <div class="pt-4 pb-4 border-t border-gray-200 bg-surface">
             <div class="px-4 flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-brand/10 text-brand flex items-center justify-center font-bold text-sm">
-                    {{ strtoupper(substr(Auth::user()->first_name, 0, 1) . substr(Auth::user()->last_name, 0, 1)) }}
-                </div>
+                @if(Auth::user()->avatar_path)
+                    <img src="{{ asset('storage/' . Auth::user()->avatar_path) }}" alt="Avatar" class="w-10 h-10 rounded-xl object-cover">
+                @else
+                    <div class="w-10 h-10 rounded-xl bg-brand/10 text-brand flex items-center justify-center font-bold text-sm">
+                        {{ strtoupper(substr(Auth::user()->first_name, 0, 1) . substr(Auth::user()->last_name, 0, 1)) }}
+                    </div>
+                @endif
                 <div>
                     <div class="font-bold text-base text-navy">{{ Auth::user()->first_name }} {{ Auth::user()->last_name }}</div>
                     <div class="font-medium text-sm text-gray-500">{{ Auth::user()->identity_id ?? Auth::user()->email }}</div>

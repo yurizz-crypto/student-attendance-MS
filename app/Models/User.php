@@ -20,9 +20,14 @@ use Illuminate\Notifications\Notifiable;
     'password',
     'role',
     'device_fingerprint',
+    'status',
+    'avatar_path',
+    'permissions',
+    'otp_code',
+    'otp_expires_at',
 ])]
 
-#[Hidden(['password', 'remember_token'])]
+#[Hidden(['password', 'remember_token', 'otp_code'])]
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -34,7 +39,20 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'permissions' => 'array',
+            'otp_expires_at' => 'datetime',
         ];
+    }
+
+    public function hasPermission(string $permission): bool
+    {
+        if ($this->role === 'admin') {
+            return true;
+        }
+
+        $permissions = $this->permissions ?? [];
+
+        return in_array($permission, $permissions);
     }
 
     public function getFullNameAttribute(): string

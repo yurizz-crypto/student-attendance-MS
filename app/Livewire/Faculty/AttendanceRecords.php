@@ -249,6 +249,7 @@ class AttendanceRecords extends Component
                 'student_id' => $enrollment->student_id,
                 'student_name' => $enrollment->student->first_name.' '.$enrollment->student->last_name,
                 'student_identity' => $enrollment->student->identity_id,
+                'student_status' => $enrollment->student->status,
                 'status' => $record?->status ?? 'absent',
                 'remarks' => $record?->remarks ?? '',
                 'record_id' => $record?->id,

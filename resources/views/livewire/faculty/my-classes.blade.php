@@ -28,6 +28,15 @@
 
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                 <button
+                    wire:click="openImportModal"
+                    class="w-full sm:w-auto px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg font-semibold text-sm hover:bg-gray-50 transition-colors flex items-center gap-2 justify-center sm:justify-start whitespace-nowrap"
+                >
+                    <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    Import Classes
+                </button>
+                <button
                     wire:click="openManageSemesters"
                     class="w-full sm:w-auto px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg font-semibold text-sm hover:bg-gray-50 transition-colors flex items-center gap-2 justify-center sm:justify-start whitespace-nowrap"
                 >
@@ -341,7 +350,14 @@
                                         class="w-full px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 text-left transition-colors flex items-center justify-between"
                                     >
                                         <div>
-                                            <div class="font-semibold text-gray-900">{{ $student->first_name }} {{ $student->last_name }}</div>
+                                            <div class="font-semibold text-gray-900 flex items-center gap-2">
+                                                {{ $student->first_name }} {{ $student->last_name }}
+                                                @if($student->status !== 'active')
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider {{ $student->status === 'suspended' ? 'bg-error/10 text-error' : 'bg-gray-200 text-gray-700' }}">
+                                                        {{ $student->status }}
+                                                    </span>
+                                                @endif
+                                            </div>
                                             <div class="text-xs text-gray-500">{{ $student->identity_id }} • {{ $student->email }}</div>
                                         </div>
                                         <svg class="w-5 h-5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -361,7 +377,14 @@
                             <div class="bg-brand/5 border border-brand/20 rounded-lg p-4 space-y-3">
                                 <div class="flex items-center justify-between">
                                     <div>
-                                        <div class="font-semibold text-gray-900">{{ $studentToEnroll->first_name }} {{ $studentToEnroll->last_name }}</div>
+                                        <div class="font-semibold text-gray-900 flex items-center gap-2">
+                                            {{ $studentToEnroll->first_name }} {{ $studentToEnroll->last_name }}
+                                            @if($studentToEnroll->status !== 'active')
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider {{ $studentToEnroll->status === 'suspended' ? 'bg-error/10 text-error' : 'bg-gray-200 text-gray-700' }}">
+                                                    {{ $studentToEnroll->status }}
+                                                </span>
+                                            @endif
+                                        </div>
                                         <div class="text-xs text-gray-500">{{ $studentToEnroll->identity_id }} • {{ $studentToEnroll->email }}</div>
                                     </div>
                                     <button
@@ -401,7 +424,14 @@
                                 @foreach($enrolledStudents as $enrollment)
                                     <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
                                         <div>
-                                            <div class="font-semibold text-gray-900">{{ $enrollment['student']['first_name'] }} {{ $enrollment['student']['last_name'] }}</div>
+                                            <div class="font-semibold text-gray-900 flex items-center gap-2">
+                                                {{ $enrollment['student']['first_name'] }} {{ $enrollment['student']['last_name'] }}
+                                                @if(isset($enrollment['student']['status']) && $enrollment['student']['status'] !== 'active')
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider {{ $enrollment['student']['status'] === 'suspended' ? 'bg-error/10 text-error' : 'bg-gray-200 text-gray-700' }}">
+                                                        {{ $enrollment['student']['status'] }}
+                                                    </span>
+                                                @endif
+                                            </div>
                                             <div class="text-xs text-gray-500">{{ $enrollment['student']['identity_id'] }}</div>
                                         </div>
                                         <button
@@ -542,6 +572,73 @@
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Import Classes Modal -->
+    @if($showImportModal)
+        <div class="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4" wire:click="closeImportModal">
+            <div class="bg-surface rounded-lg shadow-lg max-w-md w-full" @click.stop>
+                <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                    <h3 class="text-lg font-bold text-navy">Import Classes & Students (CSV)</h3>
+                    <button wire:click="closeImportModal" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <form wire:submit="importClasses" class="p-6 space-y-4">
+                    <div class="bg-blue-50 text-blue-800 p-4 rounded-lg text-sm mb-4 border border-blue-100">
+                        <p class="font-bold mb-1">CSV Format Required:</p>
+                        <p class="font-mono text-xs mb-2 break-all">subject_name,class_name,schedule_details,student_identity_id</p>
+                        <ul class="list-disc pl-4 space-y-1 text-xs">
+                            <li>Includes header row</li>
+                            <li>The class will be assigned to your <strong>Active Semester</strong></li>
+                            <li>Students must already exist in the system</li>
+                        </ul>
+                    </div>
+
+                    @error('general')
+                        <div class="bg-error/10 border border-error/20 text-error px-4 py-3 rounded-lg text-sm font-medium">
+                            {{ $message }}
+                        </div>
+                    @enderror
+
+                    <div>
+                        <label class="block text-sm font-semibold text-navy mb-2">Upload CSV File</label>
+                        <input
+                            type="file"
+                            wire:model="importFile"
+                            accept=".csv"
+                            class="w-full px-4 py-2 rounded-lg border @error('importFile') border-error @else border-gray-200 @enderror focus:outline-none focus:ring-2 focus:ring-brand"
+                        >
+                        <div wire:loading wire:target="importFile" class="text-sm text-gray-500 mt-2">Uploading...</div>
+                        @error('importFile')
+                            <p class="text-error text-xs mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="flex gap-3 pt-4">
+                        <button
+                            type="button"
+                            wire:click="closeImportModal"
+                            class="flex-1 px-4 py-2 rounded-lg border border-gray-200 text-navy font-semibold hover:bg-gray-50 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            class="flex-1 px-4 py-2 rounded-lg bg-brand text-white font-semibold hover:bg-brand-hover transition-colors flex items-center justify-center gap-2"
+                            wire:loading.attr="disabled"
+                            wire:target="importClasses"
+                        >
+                            <span wire:loading.remove wire:target="importClasses">Import</span>
+                            <span wire:loading wire:target="importClasses">Importing...</span>
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     @endif

@@ -26,15 +26,26 @@
                 </select>
             </div>
 
-            <button
-                wire:click="openAddModal"
-                class="px-4 py-2 bg-brand text-white rounded-lg font-semibold text-sm hover:bg-brand-hover transition-colors flex items-center gap-2 justify-center sm:justify-start"
-            >
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                Add User
-            </button>
+            <div class="flex gap-2">
+                <button
+                    wire:click="openImportModal"
+                    class="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg font-semibold text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                >
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    Import Users
+                </button>
+                <button
+                    wire:click="openAddModal"
+                    class="px-4 py-2 bg-brand text-white rounded-lg font-semibold text-sm hover:bg-brand-hover transition-colors flex items-center gap-2 justify-center sm:justify-start"
+                >
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add User
+                </button>
+            </div>
         </div>
     </div>
 
@@ -60,6 +71,9 @@
                         </th>
                         <th class="px-6 py-4 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors" wire:click="sort('role')">
                             Role
+                        </th>
+                        <th class="px-6 py-4 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors" wire:click="sort('status')">
+                            Status
                         </th>
                         <th class="px-6 py-4 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors" wire:click="sort('created_at')">
                             Created
@@ -92,10 +106,23 @@
                                     @elseif($user->role === 'faculty')
                                         bg-info/10 text-info
                                     @else
-                                        bg-success/10 text-success
+                                        bg-brand/10 text-brand
                                     @endif
                                 ">
                                     {{ ucfirst($user->role) }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="inline-flex px-3 py-1 rounded-full text-xs font-semibold
+                                    @if($user->status === 'active')
+                                        bg-success/10 text-success
+                                    @elseif($user->status === 'inactive')
+                                        bg-gray-100 text-gray-600
+                                    @else
+                                        bg-warning/10 text-warning
+                                    @endif
+                                ">
+                                    {{ ucfirst($user->status) }}
                                 </span>
                             </td>
                             <td class="px-6 py-4 text-gray-700">{{ $user->created_at->format('M d, Y') }}</td>
@@ -256,7 +283,7 @@
                     <div>
                         <label class="block text-sm font-semibold text-navy mb-2">Role</label>
                         <select
-                            wire:model="role"
+                            wire:model.live="role"
                             class="w-full px-4 py-2 rounded-lg border @error('role') border-error @else border-gray-200 @enderror focus:outline-none focus:ring-2 focus:ring-brand"
                         >
                             <option value="student">Student</option>
@@ -267,6 +294,35 @@
                             <p class="text-error text-xs mt-1">{{ $message }}</p>
                         @enderror
                     </div>
+
+                    <!-- Status -->
+                    <div>
+                        <label class="block text-sm font-semibold text-navy mb-2">Status</label>
+                        <select
+                            wire:model="status"
+                            class="w-full px-4 py-2 rounded-lg border @error('status') border-error @else border-gray-200 @enderror focus:outline-none focus:ring-2 focus:ring-brand"
+                        >
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="suspended">Suspended</option>
+                        </select>
+                        @error('status')
+                            <p class="text-error text-xs mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <!-- Permissions (Only for Faculty) -->
+                    @if($role === 'faculty')
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <label class="block text-sm font-semibold text-navy mb-3">Additional Permissions</label>
+                            <div class="space-y-2">
+                                <label class="flex items-center gap-3">
+                                    <input type="checkbox" wire:model="permissions" value="manage_users" class="w-4 h-4 text-brand rounded border-gray-300 focus:ring-brand">
+                                    <span class="text-sm text-gray-700">Manage Users (Dean/President level access)</span>
+                                </label>
+                            </div>
+                        </div>
+                    @endif
 
                     <!-- Buttons -->
                     <div class="flex gap-3 pt-4">
@@ -388,7 +444,7 @@
                     <div>
                         <label class="block text-sm font-semibold text-navy mb-2">Role</label>
                         <select
-                            wire:model="role"
+                            wire:model.live="role"
                             class="w-full px-4 py-2 rounded-lg border @error('role') border-error @else border-gray-200 @enderror focus:outline-none focus:ring-2 focus:ring-brand"
                         >
                             <option value="student">Student</option>
@@ -399,6 +455,35 @@
                             <p class="text-error text-xs mt-1">{{ $message }}</p>
                         @enderror
                     </div>
+
+                    <!-- Status -->
+                    <div>
+                        <label class="block text-sm font-semibold text-navy mb-2">Status</label>
+                        <select
+                            wire:model="status"
+                            class="w-full px-4 py-2 rounded-lg border @error('status') border-error @else border-gray-200 @enderror focus:outline-none focus:ring-2 focus:ring-brand"
+                        >
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="suspended">Suspended</option>
+                        </select>
+                        @error('status')
+                            <p class="text-error text-xs mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <!-- Permissions (Only for Faculty) -->
+                    @if($role === 'faculty')
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <label class="block text-sm font-semibold text-navy mb-3">Additional Permissions</label>
+                            <div class="space-y-2">
+                                <label class="flex items-center gap-3">
+                                    <input type="checkbox" wire:model="permissions" value="manage_users" class="w-4 h-4 text-brand rounded border-gray-300 focus:ring-brand">
+                                    <span class="text-sm text-gray-700">Manage Users (Dean/President level access)</span>
+                                </label>
+                            </div>
+                        </div>
+                    @endif
 
                     <!-- Buttons -->
                     <div class="flex gap-3 pt-4">
@@ -457,6 +542,67 @@
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Import Users Modal -->
+    @if($showImportModal)
+        <div class="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4" wire:click="closeImportModal">
+            <div class="bg-surface rounded-lg shadow-lg max-w-md w-full" @click.stop>
+                <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                    <h3 class="text-lg font-bold text-navy">Import Users (CSV)</h3>
+                    <button wire:click="closeImportModal" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <form wire:submit="importUsers" class="p-6 space-y-4">
+                    <div class="bg-blue-50 text-blue-800 p-4 rounded-lg text-sm mb-4 border border-blue-100">
+                        <p class="font-bold mb-1">CSV Format Required:</p>
+                        <p class="font-mono text-xs mb-2 break-all">first_name,middle_name,last_name,identity_id,email,role,password</p>
+                        <ul class="list-disc pl-4 space-y-1 text-xs">
+                            <li>Includes header row</li>
+                            <li>Role must be: admin, faculty, or student</li>
+                            <li>Existing emails/identity IDs will be skipped</li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-navy mb-2">Upload CSV File</label>
+                        <input
+                            type="file"
+                            wire:model="importFile"
+                            accept=".csv"
+                            class="w-full px-4 py-2 rounded-lg border @error('importFile') border-error @else border-gray-200 @enderror focus:outline-none focus:ring-2 focus:ring-brand"
+                        >
+                        <div wire:loading wire:target="importFile" class="text-sm text-gray-500 mt-2">Uploading...</div>
+                        @error('importFile')
+                            <p class="text-error text-xs mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="flex gap-3 pt-4">
+                        <button
+                            type="button"
+                            wire:click="closeImportModal"
+                            class="flex-1 px-4 py-2 rounded-lg border border-gray-200 text-navy font-semibold hover:bg-gray-50 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            class="flex-1 px-4 py-2 rounded-lg bg-brand text-white font-semibold hover:bg-brand-hover transition-colors flex items-center justify-center gap-2"
+                            wire:loading.attr="disabled"
+                            wire:target="importUsers"
+                        >
+                            <span wire:loading.remove wire:target="importUsers">Import</span>
+                            <span wire:loading wire:target="importUsers">Importing...</span>
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     @endif

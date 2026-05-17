@@ -299,7 +299,14 @@ new class extends Component {
                 <div class="p-6 sm:p-8 space-y-6">
                     <div>
                         <p class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Student Details</p>
-                        <p class="text-lg font-bold text-navy">{{ $reviewingExcuse->student->first_name }} {{ $reviewingExcuse->student->last_name }}</p>
+                        <p class="text-lg font-bold text-navy flex items-center gap-2">
+                            {{ $reviewingExcuse->student->first_name }} {{ $reviewingExcuse->student->last_name }}
+                            @if($reviewingExcuse->student->status !== 'active')
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider {{ $reviewingExcuse->student->status === 'suspended' ? 'bg-error/10 text-error' : 'bg-gray-200 text-gray-700' }}">
+                                    {{ $reviewingExcuse->student->status }}
+                                </span>
+                            @endif
+                        </p>
                         <p class="text-sm font-medium text-gray-500">{{ $reviewingExcuse->student->identity_id ?? 'N/A' }}</p>
                     </div>
                     <div>
