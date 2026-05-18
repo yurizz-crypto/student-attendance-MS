@@ -433,7 +433,7 @@ new class extends Component {
 
             @if($activeTab === 'manual')
                 <div class="max-w-md mx-auto py-4">
-                    <form wire:submit="submitCode" class="space-y-5">
+                    <form wire:submit.prevent="submitCode" class="space-y-5">
                         <div>
                             <label for="code" class="block text-sm font-semibold text-navy">Class Attendance Code</label>
                             <input type="text" wire:model="attendanceCode" id="code" class="mt-2 block w-full rounded-xl border-0 py-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-brand sm:text-sm sm:leading-6 bg-gray-50" placeholder="e.g. A7X9-B2" required>
