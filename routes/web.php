@@ -117,6 +117,10 @@ Route::prefix('admin')
             Route::get('/backup-settings', function () {
                 return view('admin.backup-settings');
             })->name('backup-settings');
+
+            Route::get('/site-settings', function () {
+                return view('admin.site-settings');
+            })->name('site-settings');
         });
 
     });
@@ -128,4 +132,4 @@ Route::post('/keep-alive', function () {
     return response()->json(['status' => 'ok']);
 })->middleware('auth')->name('keep-alive');
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

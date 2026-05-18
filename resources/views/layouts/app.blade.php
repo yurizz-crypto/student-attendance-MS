@@ -6,13 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ config('app.name', 'StudentAMS') }}</title>
+    <title>{{ $siteSettings?->site_name ?? config('app.name', 'StudentAMS') }}</title>
 
     <link rel="dns-prefetch" href="https://fonts.bunny.net">
     <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
     <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700&display=swap" rel="stylesheet" />
 
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    @if(!empty($siteSettings?->favicon_url))
+        <link rel="icon" href="{{ $siteSettings->favicon_url }}" type="image/x-icon">
+    @endif
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -23,6 +26,39 @@
     <meta name="session-lifetime" content="{{ config('session.lifetime') * 60 }}">
 
     <style>
+        :root {
+            --color-primary:
+                {{ $siteSettings?->primary_color ?? '#084924' }}
+            ;
+            --color-primary-hover:
+                {{ $siteSettings?->primary_hover_color ?? '#053319' }}
+            ;
+            --color-secondary:
+                {{ $siteSettings?->secondary_color ?? '#FDC601' }}
+            ;
+            --color-info:
+                {{ $siteSettings?->info_color ?? '#2F80ED' }}
+            ;
+            --color-success:
+                {{ $siteSettings?->success_color ?? '#27AE60' }}
+            ;
+            --color-warning:
+                {{ $siteSettings?->warning_color ?? '#E2B93B' }}
+            ;
+            --color-error:
+                {{ $siteSettings?->error_color ?? '#EB5757' }}
+            ;
+            --color-background:
+                {{ $siteSettings?->background_color ?? '#F8FAFC' }}
+            ;
+            --color-surface:
+                {{ $siteSettings?->surface_color ?? '#FFFFFF' }}
+            ;
+            --color-text-main:
+                {{ $siteSettings?->text_color ?? '#0F172A' }}
+            ;
+        }
+
         .swal2-confirm:focus,
         .swal2-cancel:focus,
         .swal2-deny:focus {

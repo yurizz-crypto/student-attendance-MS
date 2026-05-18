@@ -4,10 +4,13 @@ namespace App\Providers;
 
 use App\Models\AttendanceSession;
 use App\Models\ClassSection;
+use App\Models\SiteSetting;
 use App\Models\User;
 use App\Policies\FacultyPolicy;
 use App\Policies\UserPolicy;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -36,6 +39,12 @@ class AppServiceProvider extends ServiceProvider
                 ->symbols()
                 ->uncompromised();
         });
+
+        if (Schema::hasTable('site_settings')) {
+            View::share('siteSettings', SiteSetting::current());
+        } else {
+            View::share('siteSettings', null);
+        }
     }
 
     /**
