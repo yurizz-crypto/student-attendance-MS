@@ -3,7 +3,6 @@
 namespace App\Livewire;
 
 use Illuminate\Support\Facades\Auth;
-use Livewire\Attributes\On;
 use Livewire\Component;
 
 class NotificationBell extends Component
@@ -29,7 +28,13 @@ class NotificationBell extends Component
         }
     }
 
-    #[On('echo-private:App.Models.User.{userId},.Illuminate\\Notifications\\Events\\BroadcastNotificationCreated')]
+    public function getListeners()
+    {
+        return [
+            "echo-private:App.Models.User.{$this->userId},.Illuminate\\Notifications\\Events\\BroadcastNotificationCreated" => 'notifyNew',
+        ];
+    }
+
     public function notifyNew()
     {
         $this->loadNotifications();

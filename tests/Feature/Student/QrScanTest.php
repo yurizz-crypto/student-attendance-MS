@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureOtpIsVerified;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\ClassSection;
@@ -61,7 +62,7 @@ it('rejects QR scan when no qr_data is provided', function () {
     $student = makeQrStudent();
 
     $this->actingAs($student)
-        ->withoutMiddleware(\App\Http\Middleware\EnsureOtpIsVerified::class)
+        ->withoutMiddleware(EnsureOtpIsVerified::class)
         ->postJson(route('student.qr-scan.process'), [])
         ->assertStatus(400)
         ->assertJson(['success' => false]);
@@ -73,7 +74,7 @@ it('marks student present via qr_data key (qr-scan page format)', function () {
     ['session' => $session, 'qr_data' => $qrData] = makeQrSession($faculty, $student);
 
     $this->actingAs($student)
-        ->withoutMiddleware(\App\Http\Middleware\EnsureOtpIsVerified::class)
+        ->withoutMiddleware(EnsureOtpIsVerified::class)
         ->postJson(route('student.qr-scan.process'), ['qr_data' => $qrData])
         ->assertStatus(200)
         ->assertJson(['success' => true]);
@@ -92,7 +93,7 @@ it('marks student present via qrData key (student dashboard format)', function (
     ['session' => $session, 'qr_data' => $qrData] = makeQrSession($faculty, $student);
 
     $this->actingAs($student)
-        ->withoutMiddleware(\App\Http\Middleware\EnsureOtpIsVerified::class)
+        ->withoutMiddleware(EnsureOtpIsVerified::class)
         ->postJson(route('student.qr-scan.process'), ['qrData' => $qrData])
         ->assertStatus(200)
         ->assertJson(['success' => true]);
@@ -113,7 +114,7 @@ it('rejects marking present when session is closed', function () {
     $session->update(['status' => 'closed']);
 
     $this->actingAs($student)
-        ->withoutMiddleware(\App\Http\Middleware\EnsureOtpIsVerified::class)
+        ->withoutMiddleware(EnsureOtpIsVerified::class)
         ->postJson(route('student.qr-scan.process'), ['qr_data' => $qrData])
         ->assertStatus(400)
         ->assertJson(['success' => false]);
@@ -126,7 +127,7 @@ it('rejects marking present when student is not enrolled', function () {
     ['qr_data' => $qrData] = makeQrSession($faculty, $student);
 
     $this->actingAs($unenrolledStudent)
-        ->withoutMiddleware(\App\Http\Middleware\EnsureOtpIsVerified::class)
+        ->withoutMiddleware(EnsureOtpIsVerified::class)
         ->postJson(route('student.qr-scan.process'), ['qr_data' => $qrData])
         ->assertStatus(403)
         ->assertJson(['success' => false]);
@@ -139,14 +140,14 @@ it('rejects marking present twice for the same session', function () {
 
     // First scan — should succeed
     $this->actingAs($student)
-        ->withoutMiddleware(\App\Http\Middleware\EnsureOtpIsVerified::class)
+        ->withoutMiddleware(EnsureOtpIsVerified::class)
         ->postJson(route('student.qr-scan.process'), ['qr_data' => $qrData])
         ->assertStatus(200)
         ->assertJson(['success' => true]);
 
     // Second scan — should fail
     $this->actingAs($student)
-        ->withoutMiddleware(\App\Http\Middleware\EnsureOtpIsVerified::class)
+        ->withoutMiddleware(EnsureOtpIsVerified::class)
         ->postJson(route('student.qr-scan.process'), ['qr_data' => $qrData])
         ->assertStatus(400)
         ->assertJson(['success' => false]);

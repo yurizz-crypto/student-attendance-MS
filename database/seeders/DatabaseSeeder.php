@@ -2,10 +2,10 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use App\Models\Subject;
 use App\Models\ClassSection;
 use App\Models\Enrollment;
+use App\Models\Subject;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -33,8 +33,8 @@ class DatabaseSeeder extends Seeder
             $students[] = User::create([
                 'first_name' => 'Test',
                 'middle_name' => '',
-                'last_name' => 'Student ' . $i,
-                'identity_id' => 'STU-200' . $i,
+                'last_name' => 'Student '.$i,
+                'identity_id' => 'STU-200'.$i,
                 'email' => "student{$i}@pcyc.edu",
                 'password' => Hash::make('password'),
                 'role' => 'student',

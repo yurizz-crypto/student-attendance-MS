@@ -8,6 +8,7 @@ use App\Http\Controllers\Student\ExportController as StudentExportController;
 use App\Http\Controllers\Student\QrScanController;
 use App\Livewire\Admin\Reports\Index;
 use App\Livewire\Admin\UserManagement;
+use App\Livewire\Notifications\AllNotifications;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -37,6 +38,8 @@ Route::middleware(['auth', 'verified', 'otp', 'log_access'])->group(function () 
         Route::patch('/profile', 'update')->name('profile.update');
         Route::delete('/profile', 'destroy')->name('profile.destroy');
     });
+
+    Route::get('/notifications', AllNotifications::class)->name('notifications.index');
 
 });
 

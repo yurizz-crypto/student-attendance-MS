@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Models\User;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\Hash;
 
 class UserManagementService
 {
@@ -64,11 +64,12 @@ class UserManagementService
             'role' => $data['role'] ?? $user->role,
         ];
 
-        if (isset($data['password']) && !empty($data['password'])) {
+        if (isset($data['password']) && ! empty($data['password'])) {
             $updateData['password'] = Hash::make($data['password']);
         }
 
         $user->update($updateData);
+
         return $user;
     }
 

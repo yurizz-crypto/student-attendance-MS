@@ -21,7 +21,7 @@ class RegisteredUserController extends Controller
     public function create(): View
     {
         // This tells Laravel to load resources/views/auth/register.blade.php
-        return view('auth.register'); 
+        return view('auth.register');
     }
 
     /**
@@ -36,7 +36,7 @@ class RegisteredUserController extends Controller
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
-            'identity_id' => ['required', 'string', 'max:255', 'unique:'.User::class], 
+            'identity_id' => ['required', 'string', 'max:255', 'unique:'.User::class],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);

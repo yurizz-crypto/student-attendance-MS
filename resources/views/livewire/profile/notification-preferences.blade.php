@@ -71,10 +71,6 @@
 
         <div class="flex items-center gap-4 mt-6">
             <x-primary-button>{{ __('Save Preferences') }}</x-primary-button>
-
-            <x-action-message class="me-3" on="notification-preferences-updated">
-                {{ __('Saved.') }}
-            </x-action-message>
         </div>
     </form>
 </section>

@@ -28,13 +28,13 @@ class NotificationPreferences extends Component
         }
     }
 
-    public function save()
+    public function save(): void
     {
         $user = Auth::user();
         $user->notification_preferences = $this->preferences;
         $user->save();
 
-        session()->flash('status', 'notification-preferences-updated');
+        $this->dispatch('swal:success', title: 'Saved!', message: 'Notification preferences updated.');
     }
 
     public function render()
