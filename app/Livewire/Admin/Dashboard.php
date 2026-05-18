@@ -2,15 +2,11 @@
 
 namespace App\Livewire\Admin;
 
-use App\Jobs\BackupDatabase;
 use App\Models\AuditLog;
 use App\Models\ClassSection;
 use App\Models\Subject;
 use App\Models\User;
-use App\Services\AuditService;
 use App\Services\SystemHealthService;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 
 class Dashboard extends Component
@@ -122,34 +118,6 @@ class Dashboard extends Component
             'labels' => $transactions->pluck('date')->toArray(),
             'data' => $transactions->pluck('count')->toArray(),
         ];
-    }
-
-    public function backupDatabase(): void
-    {
-        try {
-            BackupDatabase::dispatch();
-
-            AuditService::log('database_backup_started', 'System', null, []);
-            
-            $this->dispatch('swal:success', title: 'Backup Started', message: 'The database backup is processing in the background.');
-        } catch (\Exception $e) {
-            $this->dispatch('swal:error', title: 'Error', message: 'Failed to start backup: ' . $e->getMessage());
-        }
-    }
-
-    public function clearCache(): void
-    {
-        try {
-            // Cleared safely without view:clear (which deletes livewire views mid-request)
-            Artisan::call('cache:clear');
-            Cache::flush();
-
-            AuditService::log('cache_cleared', 'System', null, ['timestamp' => now()]);
-            
-            $this->dispatch('swal:success', title: 'Success', message: 'Cache cleared successfully!');
-        } catch (\Exception $e) {
-            $this->dispatch('swal:error', title: 'Error', message: 'Failed to clear cache: ' . $e->getMessage());
-        }
     }
 
     public function render()

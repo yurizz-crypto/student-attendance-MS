@@ -56,6 +56,9 @@
                         <x-nav-link :href="route('admin.trash')" :active="request()->routeIs('admin.trash')">
                             {{ __('Trash') }}
                         </x-nav-link>
+                        <x-nav-link :href="route('admin.backup-settings')" :active="request()->routeIs('admin.backup-settings')">
+                            {{ __('Backups') }}
+                        </x-nav-link>
                     @endif
                 </div>
             </div>
@@ -155,6 +158,9 @@
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('admin.trash')" :active="request()->routeIs('admin.trash')">
                     {{ __('Trash') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('admin.backup-settings')" :active="request()->routeIs('admin.backup-settings')">
+                    {{ __('Backups') }}
                 </x-responsive-nav-link>
             @endif
         </div>

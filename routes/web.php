@@ -110,6 +110,10 @@ Route::prefix('admin')
             Route::get('/trash', function () {
                 return view('admin.trash');
             })->name('trash');
+
+            Route::get('/backup-settings', function () {
+                return view('admin.backup-settings');
+            })->name('backup-settings');
         });
 
     });
