@@ -2,7 +2,6 @@
     registrations: {{ json_encode($chartDataRegistrations) }},
     transactions: {{ json_encode($chartDataTransactions) }}
 })">
-    <!-- Header & Filters -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
             <h2 class="text-2xl font-bold text-navy">Dashboard Overview</h2>
@@ -16,7 +15,7 @@
                 <option value="year">This Year</option>
             </select>
             
-            <button wire:click="loadData" class="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200" title="Refresh Data">
+            <button type="button" wire:click="refreshData" class="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200" title="Refresh Data">
                 <svg wire:loading.class="animate-spin" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
@@ -24,7 +23,6 @@
         </div>
     </div>
 
-    <!-- Quick Actions -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <a href="{{ route('admin.users') }}" class="flex items-center gap-3 p-4 bg-brand/5 rounded-lg border border-brand/10 hover:bg-brand/10 transition-colors group">
             <div class="p-2 bg-brand text-white rounded-lg group-hover:scale-110 transition-transform">
@@ -42,7 +40,7 @@
             </div>
             <span class="font-medium text-info text-sm">View Logs</span>
         </a>
-        <button wire:click="backupDatabase" class="flex items-center gap-3 p-4 bg-warning/5 rounded-lg border border-warning/10 hover:bg-warning/10 transition-colors group text-left">
+        <button type="button" wire:click="backupDatabase" class="flex items-center gap-3 p-4 bg-warning/5 rounded-lg border border-warning/10 hover:bg-warning/10 transition-colors group text-left w-full">
             <div class="p-2 bg-warning text-white rounded-lg group-hover:scale-110 transition-transform">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -50,7 +48,7 @@
             </div>
             <span class="font-medium text-warning-dark text-sm">Backup DB</span>
         </button>
-        <button wire:click="clearCache" class="flex items-center gap-3 p-4 bg-success/5 rounded-lg border border-success/10 hover:bg-success/10 transition-colors group text-left">
+        <button type="button" wire:click="clearCache" class="flex items-center gap-3 p-4 bg-success/5 rounded-lg border border-success/10 hover:bg-success/10 transition-colors group text-left w-full">
             <div class="p-2 bg-success text-white rounded-lg group-hover:scale-110 transition-transform">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -60,7 +58,6 @@
         </button>
     </div>
 
-    <!-- Key Statistics Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div class="bg-surface rounded-lg border border-gray-200 shadow-sm p-6">
             <div class="flex justify-between items-start">
@@ -116,28 +113,23 @@
         </div>
     </div>
 
-    <!-- Charts Section -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- New Registrations Chart -->
         <div class="bg-surface rounded-lg border border-gray-200 shadow-sm p-6">
             <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4">New Registrations</h3>
-            <div class="relative h-64">
+            <div class="relative h-64" wire:ignore>
                 <canvas id="registrationsChart"></canvas>
             </div>
         </div>
 
-        <!-- Transactions Chart -->
         <div class="bg-surface rounded-lg border border-gray-200 shadow-sm p-6">
             <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4">System Activity</h3>
-            <div class="relative h-64">
+            <div class="relative h-64" wire:ignore>
                 <canvas id="transactionsChart"></canvas>
             </div>
         </div>
     </div>
 
-    <!-- Bottom Section: System Health & Activity Feed -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- System Health Details -->
         <div class="bg-surface rounded-lg border border-gray-200 shadow-sm p-6">
             <h3 class="font-bold text-navy mb-4">System Health</h3>
             
@@ -178,7 +170,6 @@
             </div>
         </div>
 
-        <!-- Recent Activity Feed -->
         <div class="lg:col-span-2 bg-surface rounded-lg border border-gray-200 shadow-sm overflow-hidden flex flex-col h-full">
             <div class="px-6 py-4 border-b border-gray-200 bg-gray-50/50 flex justify-between items-center">
                 <h3 class="font-bold text-navy">Recent Live Activity</h3>
@@ -241,9 +232,13 @@
             init() {
                 this.initCharts();
 
-                // Listen for Livewire updates
                 window.addEventListener('update-charts', (event) => {
-                    this.updateCharts(event.detail.registrations, event.detail.transactions);
+                    const payload = event.detail;
+                    if (payload) {
+                        const newRegs = payload.registrations || registrations;
+                        const newTrans = payload.transactions || transactions;
+                        this.updateCharts(newRegs, newTrans);
+                    }
                 });
             },
 
@@ -292,12 +287,12 @@
             },
 
             updateCharts(newRegs, newTrans) {
-                if (this.regChart) {
+                if (this.regChart && newRegs && newRegs.labels) {
                     this.regChart.data.labels = newRegs.labels;
                     this.regChart.data.datasets[0].data = newRegs.data;
                     this.regChart.update();
                 }
-                if (this.transChart) {
+                if (this.transChart && newTrans && newTrans.labels) {
                     this.transChart.data.labels = newTrans.labels;
                     this.transChart.data.datasets[0].data = newTrans.data;
                     this.transChart.update();

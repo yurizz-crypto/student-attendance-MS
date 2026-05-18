@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View; // <-- Add this import
+use Illuminate\View\View;
 
 class RegisteredUserController extends Controller
 {
@@ -31,12 +31,12 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): Response
     {
-        // 1. Update validation to match the form inputs
+        // 1. Added 'unique:'.User::class to identity_id validation
         $request->validate([
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
-            'identity_id' => ['required', 'string', 'max:255'], // Add 'unique:'.User::class if IDs should be unique
+            'identity_id' => ['required', 'string', 'max:255', 'unique:'.User::class], 
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
@@ -55,6 +55,6 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        return response()->noContent(); // Or redirect()->route('dashboard'); depending on your setup
+        return response()->noContent();
     }
 }
