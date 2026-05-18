@@ -4,11 +4,12 @@ namespace App\Http\Controllers\Faculty;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreAttendanceRequest;
+use App\Jobs\RecordAttendanceJob;
 use App\Models\ClassSection;
 use App\Services\AttendanceService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\View\View;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
 
 class AttendanceController extends Controller
 {
@@ -30,19 +31,19 @@ class AttendanceController extends Controller
      * Store the attendance records.
      */
     public function store(
-        StoreAttendanceRequest $request, 
-        ClassSection $classSection, 
+        StoreAttendanceRequest $request,
+        ClassSection $classSection,
         AttendanceService $attendanceService
     ): RedirectResponse {
-        
+
         abort_if($classSection->faculty_id !== Auth::id(), 403, 'Unauthorized action.');
 
         // Retrieve the data that passed our strict validation rules
         $validated = $request->validated();
 
-        // Pass it to the service to handle the database heavy lifting
-        $attendanceService->recordBulkAttendance(
-            $classSection,
+        // Pass it to the job to handle the database heavy lifting asynchronously
+        RecordAttendanceJob::dispatch(
+            $classSection->id,
             $validated['attendance_date'],
             $validated['students']
         );

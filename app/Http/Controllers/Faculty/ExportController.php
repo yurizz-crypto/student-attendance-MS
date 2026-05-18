@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Faculty;
 
 use App\Exports\FacultyClassExport;
 use App\Http\Controllers\Controller;
-use App\Models\AttendanceRecord;
 use App\Models\ClassSection;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ExportController extends Controller
@@ -24,22 +24,28 @@ class ExportController extends Controller
 
         $enrolledStudents = $classSection->enrollments()->with('student')->get()->pluck('student')->sortBy('last_name');
 
-        $records = AttendanceRecord::whereHas('session', function ($q) use ($classSection) {
-            $q->where('class_section_id', $classSection->id);
-        })->get();
-
         $studentStats = [];
+        $studentIds = $enrolledStudents->pluck('id')->toArray();
+
+        // Use DB aggregations instead of in-memory collection methods for handling large datasets
+        $attendanceStats = DB::table('attendance_records')
+            ->join('attendance_sessions', 'attendance_records.attendance_session_id', '=', 'attendance_sessions.id')
+            ->where('attendance_sessions.class_section_id', $classSection->id)
+            ->whereIn('attendance_records.student_id', $studentIds)
+            ->select('attendance_records.student_id', 'attendance_records.status', DB::raw('count(*) as count'))
+            ->groupBy('attendance_records.student_id', 'attendance_records.status')
+            ->get()
+            ->groupBy('student_id');
+
         foreach ($enrolledStudents as $student) {
-            $studentRecords = $records->where('student_id', $student->id);
-            $total = $studentRecords->count();
+            $stats = $attendanceStats->get($student->id, collect());
 
-            // In a real system, you might separate excused vs present vs late.
-            // For a basic report, we combine present+late+excused into 'attended' to match standard rate calculations.
-            $present = $studentRecords->where('status', 'present')->count();
-            $late = $studentRecords->where('status', 'late')->count();
-            $excused = $studentRecords->where('status', 'excused')->count();
-            $absent = $studentRecords->where('status', 'absent')->count();
+            $present = $stats->firstWhere('status', 'present')->count ?? 0;
+            $late = $stats->firstWhere('status', 'late')->count ?? 0;
+            $excused = $stats->firstWhere('status', 'excused')->count ?? 0;
+            $absent = $stats->firstWhere('status', 'absent')->count ?? 0;
 
+            $total = $present + $late + $excused + $absent;
             $attended = $present + $late + $excused;
             $rate = $total > 0 ? round(($attended / $total) * 100) : 100;
 
