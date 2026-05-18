@@ -144,9 +144,7 @@
                 &copy; {{ date('Y') }} {{ config('app.name', 'Student Attendance MS') }}. All rights reserved.
             </div>
             <div class="text-gray-400 text-sm flex gap-3 font-medium">
-                <span>Built with Laravel v{{ Illuminate\Foundation\Application::VERSION }}</span>
-                <span>•</span>
-                <span>PHP v{{ PHP_VERSION }}</span>
+                <span>Version 1.0.0</span>
             </div>
         </div>
     </footer>

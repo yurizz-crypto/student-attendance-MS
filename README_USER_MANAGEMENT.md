@@ -185,7 +185,7 @@ user-management.blade.php       - Data table, forms, modals
 ✅ Authorization policies (gates each operation)
 ✅ Form request validation (server-side)
 ✅ Unique constraints (email, identity_id)
-✅ Password hashing (Laravel Hash facade)
+✅ Password hashing (StudentAMS Hash facade)
 ✅ CSRF protection (Livewire automatic)
 ✅ Self-delete prevention (safety feature)
 ✅ Proper error messages (no data leakage)
@@ -238,7 +238,7 @@ user-management.blade.php       - Data table, forms, modals
 
 ### If Something Breaks:
 
-1. Check Laravel logs: `storage/logs/laravel.log`
+1. Check StudentAMS logs: `storage/logs/laravel.log`
 2. Verify database migrations: `php artisan migrate:status`
 3. Clear caches: `php artisan config:clear && php artisan route:clear`
 4. Recompile assets: `npm run dev`
@@ -335,7 +335,7 @@ users table (existing - NO migration needed)
 
 ### Best Practices:
 
-- Laravel conventions followed
+- StudentAMS conventions followed
 - Separation of concerns implemented
 - DRY principle applied
 - SOLID principles respected
@@ -387,7 +387,7 @@ Inside this implementation you'll find:
 
 ## 🙏 Thank You!
 
-This implementation provides a solid, production-ready solution for admin user management that integrates seamlessly with your existing Laravel application.
+This implementation provides a solid, production-ready solution for admin user management that integrates seamlessly with your existing StudentAMS application.
 
 **Next Steps**:
 

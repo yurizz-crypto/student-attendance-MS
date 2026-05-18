@@ -2,7 +2,7 @@
 
 ## Overview
 
-A complete CRUD (Create, Read, Update, Delete) user management system for admins using Livewire 4.2 and Laravel 13. The system is built following Laravel best practices with proper separation of concerns, authorization, validation, and business logic encapsulation.
+A complete CRUD (Create, Read, Update, Delete) user management system for admins using Livewire 4.2 and StudentAMS. The system is built following StudentAMS best practices with proper separation of concerns, authorization, validation, and business logic encapsulation.
 
 ## Features Implemented
 
@@ -280,7 +280,7 @@ role             - required, in: admin|faculty|student
 
 ✅ **Password Security**
 
-- Passwords hashed using Laravel's Hash facade
+- Passwords hashed using StudentAMS's Hash facade
 - Password optional on edit (doesn't expose current password)
 
 ✅ **CSRF Protection**
@@ -320,7 +320,7 @@ role             - required, in: admin|faculty|student
 - Clear code organization
 - Comprehensive comments
 - Consistent naming conventions
-- Laravel conventions followed
+- StudentAMS conventions followed
 
 ## Future Enhancements
 
