@@ -16,6 +16,9 @@
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+        {{-- Session lifetime for timeout monitor (in seconds) --}}
+        <meta name="session-lifetime" content="{{ config('session.lifetime') * 60 }}">
+
         <style>
             .swal2-confirm:focus,
             .swal2-cancel:focus,
@@ -159,6 +162,98 @@
                     if (bar) { bar.style.background = '#E2B93B'; }
                 });
             });
+
+            // ─── Session Timeout Monitor ───────────────────────────────────────────
+            (function () {
+                const lifetimeMeta = document.querySelector('meta[name="session-lifetime"]');
+                if (!lifetimeMeta) { return; }
+
+                const SESSION_LIFETIME_MS = parseInt(lifetimeMeta.content, 10) * 1000;
+                const WARN_BEFORE_MS = 5 * 60 * 1000; // warn 5 minutes before expiry
+                const CSRF = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+
+                let lastActivity = Date.now();
+                let warningShown = false;
+                let countdownInterval = null;
+
+                // Track any user interaction
+                ['click', 'keydown', 'mousemove', 'touchstart', 'scroll'].forEach(evt => {
+                    document.addEventListener(evt, () => { lastActivity = Date.now(); }, { passive: true });
+                });
+
+                function resetTimer() {
+                    lastActivity = Date.now();
+                    warningShown = false;
+                    clearInterval(countdownInterval);
+                }
+
+                function showCountdown() {
+                    if (warningShown) { return; }
+                    warningShown = true;
+
+                    let remaining = Math.ceil(WARN_BEFORE_MS / 1000); // seconds
+
+                    Swal.fire({
+                        title: '⏱ Session Expiring Soon',
+                        html: `<p class="text-sm text-gray-600">Your session will expire in <strong id="session-countdown">${remaining}</strong> seconds due to inactivity.</p><p class="text-xs text-gray-400 mt-1">Click "Stay Logged In" to extend your session.</p>`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Stay Logged In',
+                        cancelButtonText: 'Log Out',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        customClass: { popup: 'swal2-branded-dialog' },
+                        didOpen: (popup) => {
+                            Object.assign(popup.style, {
+                                fontFamily: 'Instrument Sans, sans-serif',
+                                borderRadius: '20px',
+                                border: '1px solid #FDE68A',
+                                padding: '2rem',
+                            });
+                            const c = popup.querySelector('.swal2-confirm');
+                            if (c) Object.assign(c.style, { background: '#084924', border: 'none', borderRadius: '10px', fontFamily: 'Instrument Sans, sans-serif', fontWeight: '600', padding: '0.55rem 1.4rem', boxShadow: 'none' });
+                            const x = popup.querySelector('.swal2-cancel');
+                            if (x) Object.assign(x.style, { background: '#f1f5f9', color: '#0F172A', border: 'none', borderRadius: '10px', fontFamily: 'Instrument Sans, sans-serif', fontWeight: '600', padding: '0.55rem 1.4rem', boxShadow: 'none' });
+
+                            countdownInterval = setInterval(() => {
+                                remaining--;
+                                const el = document.getElementById('session-countdown');
+                                if (el) { el.textContent = remaining; }
+                                if (remaining <= 0) {
+                                    clearInterval(countdownInterval);
+                                    Swal.close();
+                                    window.location.href = '{{ route("login") }}';
+                                }
+                            }, 1000);
+                        },
+                        willClose: () => { clearInterval(countdownInterval); },
+                    }).then(result => {
+                        if (result.isConfirmed) {
+                            // POST keepalive to refresh session
+                            fetch('{{ route("keep-alive") }}', {
+                                method: 'POST',
+                                headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+                            }).then(() => { resetTimer(); });
+                        } else {
+                            window.location.href = '{{ route("logout") }}';
+                        }
+                    });
+                }
+
+                // Poll every 10 seconds
+                setInterval(() => {
+                    const idle = Date.now() - lastActivity;
+                    if (idle >= SESSION_LIFETIME_MS) {
+                        // Session has expired — redirect
+                        clearInterval(countdownInterval);
+                        window.location.href = '{{ route("login") }}';
+                    } else if (idle >= SESSION_LIFETIME_MS - WARN_BEFORE_MS) {
+                        showCountdown();
+                    } else {
+                        warningShown = false;
+                    }
+                }, 10000);
+            })();
         </script>
     </body>
 </html>

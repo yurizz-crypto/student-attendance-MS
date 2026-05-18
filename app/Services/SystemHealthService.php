@@ -51,17 +51,22 @@ class SystemHealthService
 
     private static function getStorageUsage()
     {
+        $pct = self::getStoragePercent();
+
+        return $pct !== null ? $pct.'%' : 'N/A';
+    }
+
+    public static function getStoragePercent(): ?float
+    {
         try {
             $path = storage_path();
             $total = disk_total_space($path);
             $free = disk_free_space($path);
             $used = $total - $free;
 
-            $percentage = $total > 0 ? round(($used / $total) * 100, 1) : 0;
-
-            return $percentage.'%';
+            return $total > 0 ? round(($used / $total) * 100, 1) : 0.0;
         } catch (\Exception $e) {
-            return 'N/A';
+            return null;
         }
     }
 

@@ -38,6 +38,7 @@ it('soft deletes a user and keeps the record in the database', function () {
     Livewire::actingAs($admin)
         ->test(UserManagement::class)
         ->call('openDeleteModal', $student->id)
+        ->set('deletePassword', 'password') // factory default password
         ->call('destroy');
 
     // Not in default query (soft deleted)
@@ -107,6 +108,7 @@ it('prevents deleting own account', function () {
     Livewire::actingAs($admin)
         ->test(UserManagement::class)
         ->call('openDeleteModal', $admin->id)
+        ->set('deletePassword', 'password')
         ->call('destroy');
 
     // Admin still exists

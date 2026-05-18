@@ -101,6 +101,8 @@ class UserManagement extends Component
 
     public $deleteConfirmUserId = null;
 
+    public $deletePassword = '';
+
     /** @var array<string, mixed> Info about cascading effects for the user being deleted */
     public $cascadeInfo = [];
 
@@ -166,13 +168,15 @@ class UserManagement extends Component
         // Check if trying to delete own account
         if (in_array(auth()->id(), $this->selectedIds)) {
             $this->dispatch('swal:error', title: 'Error', message: 'You cannot delete your own account.');
+
             return;
         }
 
         // Check if trying to delete other admin accounts (only admins can manage users)
         $adminIds = User::where('role', 'admin')->whereIn('id', $this->selectedIds)->pluck('id')->toArray();
-        if (!empty($adminIds) && auth()->user()->role !== 'admin') {
+        if (! empty($adminIds) && auth()->user()->role !== 'admin') {
             $this->dispatch('swal:error', title: 'Error', message: 'You cannot delete admin accounts.');
+
             return;
         }
 
@@ -377,6 +381,7 @@ class UserManagement extends Component
     {
         $this->showDeleteModal = false;
         $this->deleteConfirmUserId = null;
+        $this->deletePassword = '';
         $this->cascadeInfo = [];
     }
 
@@ -677,6 +682,13 @@ class UserManagement extends Component
         if ($user->id === auth()->id()) {
             $this->dispatch('swal:error', title: 'Error', message: 'Cannot delete your own account.');
             $this->closeDeleteModal();
+
+            return;
+        }
+
+        // Require password re-entry before deletion
+        if (! Hash::check($this->deletePassword, auth()->user()->password)) {
+            $this->dispatch('swal:error', title: 'Authentication Failed', message: 'Incorrect password. Please enter your current password to confirm deletion.');
 
             return;
         }

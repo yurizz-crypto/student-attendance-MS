@@ -6,7 +6,10 @@ use App\Models\AuditLog;
 use App\Models\ClassSection;
 use App\Models\Subject;
 use App\Models\User;
+use App\Notifications\StorageWarningNotification;
 use App\Services\SystemHealthService;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Notification;
 use Livewire\Component;
 
 class Dashboard extends Component
@@ -90,8 +93,40 @@ class Dashboard extends Component
         // System Health
         $this->systemHealth = SystemHealthService::getMetrics();
 
+        // Check storage warning threshold (≥85%)
+        $this->checkStorageWarning();
+
         // Prepare Chart Data
         $this->prepareChartData($startDate);
+    }
+
+    private function checkStorageWarning(): void
+    {
+        $percent = SystemHealthService::getStoragePercent();
+
+        if ($percent === null || $percent < 85) {
+            return;
+        }
+
+        // Dispatch a browser warning toast
+        $this->dispatch('swal:warning',
+            title: 'Storage Warning',
+            message: "System storage is at {$percent}%. Please clean up old files to prevent issues."
+        );
+
+        // Email admins once per 24 hours
+        $cacheKey = 'storage_warning_sent';
+
+        if (! Cache::has($cacheKey)) {
+            Cache::put($cacheKey, true, now()->addHours(24));
+
+            $admins = User::where('role', 'admin')->get();
+
+            Notification::send($admins, new StorageWarningNotification(
+                usagePercent: $percent,
+                checkedAt: now()->toDateTimeString()
+            ));
+        }
     }
 
     private function prepareChartData($startDate)

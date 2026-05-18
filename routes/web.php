@@ -118,4 +118,11 @@ Route::prefix('admin')
 
     });
 
+// Session keepalive endpoint — resets session lifetime, used by timeout monitor
+Route::post('/keep-alive', function () {
+    session()->put('_keep_alive', now()->timestamp);
+
+    return response()->json(['status' => 'ok']);
+})->middleware('auth')->name('keep-alive');
+
 require __DIR__.'/auth.php';

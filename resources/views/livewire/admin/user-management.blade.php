@@ -124,10 +124,73 @@
             <div class="flex flex-wrap items-center gap-3 px-4 py-3 bg-brand/5 border border-brand/20 rounded-lg">
                 <span class="text-sm font-semibold text-brand">{{ count($selectedIds) }} selected</span>
                 <div class="flex gap-2 ml-auto flex-wrap">
-                    <button wire:click="bulkUpdateStatus('active')" class="px-3 py-1.5 text-xs font-semibold text-success border border-success/30 rounded-lg hover:bg-success/10 transition-colors">Set Active</button>
-                    <button wire:click="bulkUpdateStatus('inactive')" class="px-3 py-1.5 text-xs font-semibold text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">Set Inactive</button>
+                    <button
+                        x-data
+                        @click="
+                            Swal.fire({
+                                title: 'Activate {{ count($selectedIds) }} User(s)?',
+                                html: '<p class=\'text-sm text-gray-600\'>This will set <strong>{{ count($selectedIds) }} user(s)</strong> to <span class=\'text-green-600 font-semibold\'>Active</span> status.</p>',
+                                icon: 'question',
+                                showCancelButton: true,
+                                confirmButtonText: 'Set Active',
+                                cancelButtonText: 'Cancel',
+                                customClass: { popup: 'swal2-branded-dialog' },
+                                didOpen: (popup) => {
+                                    Object.assign(popup.style, { fontFamily: 'Instrument Sans, sans-serif', borderRadius: '20px', border: '1px solid #E2E8F0', padding: '2rem' });
+                                    const c = popup.querySelector('.swal2-confirm');
+                                    if (c) Object.assign(c.style, { background: '#27AE60', border: 'none', borderRadius: '10px', fontFamily: 'Instrument Sans, sans-serif', fontWeight: '600', padding: '0.55rem 1.4rem', boxShadow: 'none' });
+                                    const x = popup.querySelector('.swal2-cancel');
+                                    if (x) Object.assign(x.style, { background: '#f1f5f9', color: '#0F172A', border: 'none', borderRadius: '10px', fontFamily: 'Instrument Sans, sans-serif', fontWeight: '600', padding: '0.55rem 1.4rem', boxShadow: 'none' });
+                                }
+                            }).then(r => { if (r.isConfirmed) $wire.bulkUpdateStatus('active'); });
+                        "
+                        class="px-3 py-1.5 text-xs font-semibold text-success border border-success/30 rounded-lg hover:bg-success/10 transition-colors"
+                    >Set Active</button>
+                    <button
+                        x-data
+                        @click="
+                            Swal.fire({
+                                title: 'Deactivate {{ count($selectedIds) }} User(s)?',
+                                html: '<p class=\'text-sm text-gray-600\'>This will set <strong>{{ count($selectedIds) }} user(s)</strong> to <span class=\'text-gray-600 font-semibold\'>Inactive</span> status.</p>',
+                                icon: 'question',
+                                showCancelButton: true,
+                                confirmButtonText: 'Set Inactive',
+                                cancelButtonText: 'Cancel',
+                                customClass: { popup: 'swal2-branded-dialog' },
+                                didOpen: (popup) => {
+                                    Object.assign(popup.style, { fontFamily: 'Instrument Sans, sans-serif', borderRadius: '20px', border: '1px solid #E2E8F0', padding: '2rem' });
+                                    const c = popup.querySelector('.swal2-confirm');
+                                    if (c) Object.assign(c.style, { background: '#64748b', border: 'none', borderRadius: '10px', fontFamily: 'Instrument Sans, sans-serif', fontWeight: '600', padding: '0.55rem 1.4rem', boxShadow: 'none' });
+                                    const x = popup.querySelector('.swal2-cancel');
+                                    if (x) Object.assign(x.style, { background: '#f1f5f9', color: '#0F172A', border: 'none', borderRadius: '10px', fontFamily: 'Instrument Sans, sans-serif', fontWeight: '600', padding: '0.55rem 1.4rem', boxShadow: 'none' });
+                                }
+                            }).then(r => { if (r.isConfirmed) $wire.bulkUpdateStatus('inactive'); });
+                        "
+                        class="px-3 py-1.5 text-xs font-semibold text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+                    >Set Inactive</button>
                     <button wire:click="exportExcel" class="px-3 py-1.5 text-xs font-semibold text-info border border-info/30 rounded-lg hover:bg-info/10 transition-colors">Export Selected</button>
-                    <button wire:click="bulkDelete" wire:confirm="Move {{ count($selectedIds) }} user(s) to trash?" class="px-3 py-1.5 text-xs font-semibold text-error border border-error/30 rounded-lg hover:bg-error/10 transition-colors">Delete Selected</button>
+                    <button
+                        x-data
+                        @click="
+                            Swal.fire({
+                                title: 'Delete {{ count($selectedIds) }} User(s)?',
+                                html: '<div class=\'space-y-2 text-left\'><p class=\'text-sm text-gray-700\'>⚠️ <strong>{{ count($selectedIds) }} user(s)</strong> will be moved to trash.</p><p class=\'text-xs text-gray-500\'>This includes all their associated enrollments and attendance records. You can restore them from the Trash view.</p></div>',
+                                icon: 'warning',
+                                showCancelButton: true,
+                                confirmButtonText: 'Yes, Delete',
+                                cancelButtonText: 'Cancel',
+                                customClass: { popup: 'swal2-branded-dialog' },
+                                didOpen: (popup) => {
+                                    Object.assign(popup.style, { fontFamily: 'Instrument Sans, sans-serif', borderRadius: '20px', border: '1px solid #FCA5A5', padding: '2rem' });
+                                    const c = popup.querySelector('.swal2-confirm');
+                                    if (c) Object.assign(c.style, { background: '#EB5757', border: 'none', borderRadius: '10px', fontFamily: 'Instrument Sans, sans-serif', fontWeight: '600', padding: '0.55rem 1.4rem', boxShadow: 'none' });
+                                    const x = popup.querySelector('.swal2-cancel');
+                                    if (x) Object.assign(x.style, { background: '#f1f5f9', color: '#0F172A', border: 'none', borderRadius: '10px', fontFamily: 'Instrument Sans, sans-serif', fontWeight: '600', padding: '0.55rem 1.4rem', boxShadow: 'none' });
+                                }
+                            }).then(r => { if (r.isConfirmed) $wire.bulkDelete(); });
+                        "
+                        class="px-3 py-1.5 text-xs font-semibold text-error border border-error/30 rounded-lg hover:bg-error/10 transition-colors"
+                    >Delete Selected</button>
                     <button wire:click="clearSelection" class="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors">Cancel</button>
                 </div>
             </div>
@@ -968,6 +1031,25 @@
                         </div>
                     @endif
 
+                    {{-- Password re-entry --}}
+                    <div class="p-4 rounded-lg bg-gray-50 border border-gray-200 space-y-2">
+                        <label for="delete-confirm-password" class="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                            <svg class="w-4 h-4 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                            Confirm Your Password
+                        </label>
+                        <p class="text-xs text-gray-500">Enter your current password to authorize this action.</p>
+                        <input
+                            id="delete-confirm-password"
+                            type="password"
+                            wire:model="deletePassword"
+                            class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-error/50 text-sm"
+                            placeholder="Your password"
+                            autocomplete="current-password"
+                        >
+                    </div>
+
                     <div class="flex gap-3 pt-2">
                         <button
                             type="button"
@@ -979,9 +1061,12 @@
                         <button
                             type="button"
                             wire:click="destroy"
-                            class="flex-1 px-4 py-2 rounded-lg bg-error text-white font-semibold hover:bg-red-700 transition-colors"
+                            wire:loading.attr="disabled"
+                            wire:target="destroy"
+                            class="flex-1 px-4 py-2 rounded-lg bg-error text-white font-semibold hover:bg-red-700 transition-colors disabled:opacity-60"
                         >
-                            Move to Trash
+                            <span wire:loading.remove wire:target="destroy">Move to Trash</span>
+                            <span wire:loading wire:target="destroy">Deleting...</span>
                         </button>
                     </div>
                 </div>
