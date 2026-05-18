@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\Excuse;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -21,7 +22,10 @@ class ExcuseProcessedNotification extends Notification implements ShouldQueue
 
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        $channels = $notifiable->getNotificationChannels('system');
+        $channels[] = 'broadcast';
+
+        return array_unique($channels);
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -46,5 +50,15 @@ class ExcuseProcessedNotification extends Notification implements ShouldQueue
             'excuse_id' => $this->excuse->id,
             'status' => $this->excuse->status,
         ];
+    }
+
+    public function toBroadcast(object $notifiable): BroadcastMessage
+    {
+        $subjectCode = $this->excuse->classSection->subject->code ?? 'Unknown';
+
+        return new BroadcastMessage([
+            'type' => 'excuse_processed',
+            'message' => "Your excuse for $subjectCode was {$this->excuse->status}.",
+        ]);
     }
 }

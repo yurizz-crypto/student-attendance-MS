@@ -143,36 +143,20 @@
 
                 window.addEventListener('swal:error', (event) => {
                     const data = event.detail;
-                    swalDialog.fire({
-                        icon: 'error',
-                        title: data.title,
-                        text: data.message,
-                        confirmButtonText: 'Dismiss',
-                        didOpen: (popup) => {
-                            Object.assign(popup.style, { border: '1px solid #FECACA' });
-                            const confirm = popup.querySelector('.swal2-confirm');
-                            if (confirm) {
-                                Object.assign(confirm.style, { background: '#EB5757' });
-                            }
-                        },
-                    });
+                    const toast = swalToast.fire({ icon: 'error', title: data.title, text: data.message });
+                    toast.then && swalToast._popup && (swalToast._popup.__swalProgressColor = '#EB5757');
+                    Swal.getPopup() && (Swal.getPopup().__swalProgressColor = '#EB5757');
+                    const bar = document.querySelector('.swal2-timer-progress-bar');
+                    if (bar) { bar.style.background = '#EB5757'; }
                 });
 
                 window.addEventListener('swal:warning', (event) => {
                     const data = event.detail;
-                    swalDialog.fire({
-                        icon: 'warning',
-                        title: data.title,
-                        text: data.message,
-                        confirmButtonText: 'OK',
-                        didOpen: (popup) => {
-                            Object.assign(popup.style, { border: '1px solid #FDE68A' });
-                            const confirm = popup.querySelector('.swal2-confirm');
-                            if (confirm) {
-                                Object.assign(confirm.style, { background: '#E2B93B', color: '#0F172A' });
-                            }
-                        },
-                    });
+                    const toast = swalToast.fire({ icon: 'warning', title: data.title, text: data.message });
+                    toast.then && swalToast._popup && (swalToast._popup.__swalProgressColor = '#E2B93B');
+                    Swal.getPopup() && (Swal.getPopup().__swalProgressColor = '#E2B93B');
+                    const bar = document.querySelector('.swal2-timer-progress-bar');
+                    if (bar) { bar.style.background = '#E2B93B'; }
                 });
             });
         </script>

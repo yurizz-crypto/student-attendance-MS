@@ -9,6 +9,7 @@ use App\Models\Enrollment;
 use App\Models\Semester;
 use App\Models\Subject;
 use App\Models\User;
+use App\Notifications\StudentEnrolledNotification;
 use App\Services\AuditService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -504,6 +505,8 @@ class MyClasses extends Component
             'student_id' => $this->studentToEnroll->id,
             'status' => 'active',
         ]);
+
+        $this->studentToEnroll->notify(new StudentEnrolledNotification($enrollment->classSection));
 
         // Log the enrollment
         AuditService::log(

@@ -19,6 +19,12 @@
             </div>
         </div>
 
+        <div class="p-6 sm:p-8 bg-surface shadow-sm rounded-3xl border border-gray-100">
+            <div class="max-w-3xl">
+                <livewire:profile.notification-preferences />
+            </div>
+        </div>
+
         <div class="p-6 sm:p-8 bg-surface shadow-sm rounded-3xl border border-error/20 relative overflow-hidden">
             <div class="absolute top-0 left-0 w-1.5 h-full bg-error"></div>
             

@@ -7,6 +7,7 @@ use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\Enrollment;
 use App\Models\Excuse;
+use App\Notifications\StudentScannedAttendanceNotification;
 use App\Services\AuditService;
 
 new class extends Component {
@@ -36,12 +37,12 @@ new class extends Component {
         $session = AttendanceSession::where('attendance_code', strtoupper($this->attendanceCode))->first();
 
         if (!$session) {
-            session()->flash('status', 'Invalid attendance code.');
+            $this->dispatch('swal:error', title: 'Error', message: 'Invalid attendance code.');
             return;
         }
 
         if ($session->status !== 'open') {
-            session()->flash('status', 'This attendance session has been closed.');
+            $this->dispatch('swal:error', title: 'Error', message: 'This attendance session has been closed.');
             return;
         }
 
@@ -50,7 +51,7 @@ new class extends Component {
             ->exists();
 
         if (!$isEnrolled) {
-            session()->flash('status', 'You are not enrolled in this class.');
+            $this->dispatch('swal:error', title: 'Error', message: 'You are not enrolled in this class.');
             return;
         }
 
@@ -59,7 +60,7 @@ new class extends Component {
             ->first();
 
         if ($existing && $existing->status === 'present') {
-            session()->flash('status', 'You have already marked yourself present in this session.');
+            $this->dispatch('swal:error', title: 'Error', message: 'You have already marked yourself present in this session.');
             return;
         }
 
@@ -68,13 +69,20 @@ new class extends Component {
                 'status' => 'present',
                 'remarks' => 'Marked present via manual code',
             ]);
+            $record = $existing;
         } else {
-            AttendanceRecord::create([
+            $record = AttendanceRecord::create([
                 'attendance_session_id' => $session->id,
                 'student_id' => Auth::id(),
                 'status' => 'present',
                 'remarks' => 'Marked present via manual code',
             ]);
+        }
+
+        // Notify faculty
+        $faculty = $session->classSection->faculty;
+        if ($faculty) {
+            $faculty->notify(new StudentScannedAttendanceNotification(Auth::user(), $record));
         }
 
         AuditService::log(
@@ -86,7 +94,7 @@ new class extends Component {
         );
 
         $this->attendanceCode = '';
-        session()->flash('status', 'You have been marked present!');
+        $this->dispatch('swal:success', title: 'Success', message: 'You have been marked present!');
     }
 
     public function submitExcuse()
@@ -379,21 +387,27 @@ new class extends Component {
                                     'Content-Type': 'application/json',
                                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                                 },
-                                body: JSON.stringify({ qrData: decodedText })
+                                body: JSON.stringify({ qr_data: decodedText })
                             })
                             .then(response => response.json())
                             .then(data => {
-                                if(data.success) {
-                                    @this.setTab('scanner');
-                                    window.location.reload();
+                                if (data.success) {
+                                    window.dispatchEvent(new CustomEvent('swal:success', {
+                                        detail: { title: 'Marked Present!', message: data.message }
+                                    }));
+                                    setTimeout(() => window.location.reload(), 1800);
                                 } else {
-                                    alert(data.message);
-                                    this.toggleScanner(); // Restart scanner
+                                    window.dispatchEvent(new CustomEvent('swal:error', {
+                                        detail: { title: 'Error', message: data.message }
+                                    }));
+                                    this.toggleScanner();
                                 }
                             })
                             .catch(err => {
-                                alert('Error scanning QR code');
-                                this.toggleScanner(); // Restart scanner
+                                window.dispatchEvent(new CustomEvent('swal:error', {
+                                    detail: { title: 'Error', message: 'Failed to process QR code. Please try again.' }
+                                }));
+                                this.toggleScanner();
                             });
                         },
                         

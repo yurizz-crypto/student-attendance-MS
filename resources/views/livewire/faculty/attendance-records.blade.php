@@ -143,6 +143,11 @@
                                     @if($session->attendance_code)
                                         <div class="flex items-center bg-gray-100 rounded-lg px-2 py-1 mr-2" title="Manual Attendance Code">
                                             <span class="text-xs font-mono font-bold text-gray-700 select-all">{{ $session->attendance_code }}</span>
+                                            <button onclick="navigator.clipboard.writeText('{{ $session->attendance_code }}'); window.dispatchEvent(new CustomEvent('swal:success', {detail: {title: 'Copied!', message: 'Attendance code copied to clipboard'}}));" class="ml-2 text-gray-400 hover:text-brand transition-colors" title="Copy Code">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                                </svg>
+                                            </button>
                                         </div>
                                     @endif
                                     <button
@@ -454,12 +459,31 @@
 
                 <div class="p-6 space-y-4">
                     <div class="flex justify-center bg-white p-4 rounded-lg border border-gray-200">
-                        <img src="{{ $sessionQrCode }}" alt="QR Code" class="w-64 h-64">
+                        {!! $sessionQrCode !!}
                     </div>
 
-                    <p class="text-center text-sm text-gray-600">
-                        Students can scan this QR code to mark themselves present in this attendance session.
-                    </p>
+                    <div class="text-center">
+                        <p class="text-sm text-gray-600 mb-3">
+                            Students can scan this QR code to mark themselves present in this attendance session.
+                        </p>
+                        
+                        @php
+                            $currentSession = \App\Models\AttendanceSession::find($selectedSessionId);
+                        @endphp
+                        @if($currentSession && $currentSession->attendance_code)
+                        <div class="inline-flex flex-col items-center p-3 bg-gray-50 rounded-xl border border-gray-200">
+                            <span class="text-xs text-gray-500 font-medium mb-1">Or use manual code:</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xl font-mono font-bold text-navy tracking-wider select-all">{{ $currentSession->attendance_code }}</span>
+                                <button onclick="navigator.clipboard.writeText('{{ $currentSession->attendance_code }}'); window.dispatchEvent(new CustomEvent('swal:success', {detail: {title: 'Copied!', message: 'Attendance code copied to clipboard'}}));" class="p-1.5 text-gray-400 hover:text-brand bg-white rounded-lg border border-gray-200 hover:border-brand shadow-sm transition-all" title="Copy Code">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        @endif
+                    </div>
 
                     <div class="flex gap-2">
                         <button

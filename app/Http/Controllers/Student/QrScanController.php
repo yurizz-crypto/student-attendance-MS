@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\Enrollment;
+use App\Notifications\StudentScannedAttendanceNotification;
 use App\Services\AuditService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
@@ -24,8 +26,18 @@ class QrScanController extends Controller
     /**
      * Process the scanned QR code and mark student as present.
      */
-    public function scan(string $qrData): JsonResponse
+    public function scan(Request $request): JsonResponse
     {
+        // Support both 'qr_data' (qr-scan page) and 'qrData' (student dashboard)
+        $qrData = $request->input('qr_data') ?? $request->input('qrData', '');
+
+        if (empty($qrData)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No QR code data provided.',
+            ], 400);
+        }
+
         try {
             // Parse QR data: session_id|class_id|date|faculty_id
             $parts = explode('|', $qrData);
@@ -110,6 +122,12 @@ class QrScanController extends Controller
                     'status' => 'present',
                     'remarks' => 'Marked present via QR code',
                 ]);
+            }
+
+            // Notify faculty
+            $faculty = $session->classSection->faculty;
+            if ($faculty) {
+                $faculty->notify(new StudentScannedAttendanceNotification(Auth::user(), $record));
             }
 
             // Log the attendance marking

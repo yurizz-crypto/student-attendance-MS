@@ -25,6 +25,7 @@ use Illuminate\Notifications\Notifiable;
     'status',
     'avatar_path',
     'permissions',
+    'notification_preferences',
     'otp_code',
     'otp_expires_at',
     'last_activity',
@@ -44,6 +45,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'permissions' => 'array',
+            'notification_preferences' => 'array',
             'otp_expires_at' => 'datetime',
             'last_activity' => 'datetime',
         ];
@@ -87,5 +89,40 @@ class User extends Authenticatable implements MustVerifyEmail
     public function auditLogs(): HasMany
     {
         return $this->hasMany(AuditLog::class);
+    }
+
+    /**
+     * Get the configured notification channels for a specific category.
+     * Categories: 'system', 'warning', 'critical'
+     */
+    public function getNotificationChannels(string $category): array
+    {
+        // Default fallbacks if preference is not set
+        $defaults = [
+            'system' => ['database'],
+            'warning' => ['database', 'mail'],
+            'critical' => ['database', 'mail'],
+        ];
+
+        $prefs = $this->notification_preferences ?? [];
+
+        if (! isset($prefs[$category])) {
+            return $defaults[$category] ?? ['database'];
+        }
+
+        $channels = [];
+        if (! empty($prefs[$category]['database'])) {
+            $channels[] = 'database';
+        }
+        if (! empty($prefs[$category]['mail'])) {
+            $channels[] = 'mail';
+        }
+
+        // Critical alerts should always at least notify in-app
+        if ($category === 'critical' && empty($channels)) {
+            return ['database'];
+        }
+
+        return empty($channels) ? ['database'] : $channels;
     }
 }

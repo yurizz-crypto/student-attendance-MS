@@ -6,6 +6,7 @@ use App\Exports\AttendanceSessionsExport;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\ClassSection;
+use App\Notifications\ClassSessionCreatedNotification;
 use App\Services\AttendanceService;
 use App\Services\AuditService;
 use Illuminate\Support\Facades\Auth;
@@ -13,6 +14,7 @@ use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Maatwebsite\Excel\Facades\Excel;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class AttendanceRecords extends Component
 {
@@ -230,6 +232,12 @@ class AttendanceRecords extends Component
             'qr_code_data' => null, // Will be set after
         ]);
 
+        // Notify enrolled students
+        $students = $class->students;
+        foreach ($students as $student) {
+            $student->notify(new ClassSessionCreatedNotification($session));
+        }
+
         // Now generate the final QR data with the session ID
         $finalQrData = implode('|', [
             $session->id,
@@ -406,11 +414,7 @@ class AttendanceRecords extends Component
 
     private function generateQrCode($data)
     {
-        // Using simple inline QR code generation
-        // In production, use a proper QR library like 'endroid/qr-code'
-        $qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data='.urlencode($data);
-
-        return $qrUrl;
+        return (string) QrCode::size(256)->margin(1)->generate($data);
     }
 
     public function closeSession($sessionId)
