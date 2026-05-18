@@ -143,7 +143,7 @@
                                     @if($session->attendance_code)
                                         <div class="flex items-center bg-gray-100 rounded-lg px-2 py-1 mr-2" title="Manual Attendance Code">
                                             <span class="text-xs font-mono font-bold text-gray-700 select-all">{{ $session->attendance_code }}</span>
-                                            <button onclick="navigator.clipboard.writeText('{{ $session->attendance_code }}'); window.dispatchEvent(new CustomEvent('swal:success', {detail: {title: 'Copied!', message: 'Attendance code copied to clipboard'}}));" class="ml-2 text-gray-400 hover:text-brand transition-colors" title="Copy Code">
+                                            <button onclick="copyAttendanceCode('{{ $session->attendance_code }}')" class="ml-2 text-gray-400 hover:text-brand transition-colors" title="Copy Code">
                                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                                 </svg>
@@ -445,7 +445,7 @@
     @endif
 
     <!-- QR Code Modal -->
-    @if($showQrModal && $sessionQrCode)
+    @if($showQrModal)
         <div class="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4" wire:click="closeQrModal">
             <div class="bg-surface rounded-lg shadow-lg max-w-md w-full" @click.stop>
                 <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
@@ -458,15 +458,25 @@
                 </div>
 
                 <div class="p-6 space-y-4">
-                    <div class="flex justify-center bg-white p-4 rounded-lg border border-gray-200">
-                        {!! $sessionQrCode !!}
+                    <div class="flex justify-center bg-white p-4 rounded-lg border border-gray-200 min-h-[280px] items-center">
+                        @if($sessionQrCode)
+                            {!! $sessionQrCode !!}
+                        @else
+                            <div class="flex flex-col items-center gap-2 text-gray-400">
+                                <svg class="w-12 h-12 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                                </svg>
+                                <span class="text-sm">Generating QR code...</span>
+                            </div>
+                        @endif
                     </div>
 
                     <div class="text-center">
                         <p class="text-sm text-gray-600 mb-3">
                             Students can scan this QR code to mark themselves present in this attendance session.
                         </p>
-                        
+
                         @php
                             $currentSession = \App\Models\AttendanceSession::find($selectedSessionId);
                         @endphp
@@ -475,7 +485,7 @@
                             <span class="text-xs text-gray-500 font-medium mb-1">Or use manual code:</span>
                             <div class="flex items-center gap-2">
                                 <span class="text-xl font-mono font-bold text-navy tracking-wider select-all">{{ $currentSession->attendance_code }}</span>
-                                <button onclick="navigator.clipboard.writeText('{{ $currentSession->attendance_code }}'); window.dispatchEvent(new CustomEvent('swal:success', {detail: {title: 'Copied!', message: 'Attendance code copied to clipboard'}}));" class="p-1.5 text-gray-400 hover:text-brand bg-white rounded-lg border border-gray-200 hover:border-brand shadow-sm transition-all" title="Copy Code">
+                                <button onclick="copyAttendanceCode('{{ $currentSession->attendance_code }}')" class="p-1.5 text-gray-400 hover:text-brand bg-white rounded-lg border border-gray-200 hover:border-brand shadow-sm transition-all" title="Copy Code">
                                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                     </svg>
@@ -507,4 +517,36 @@
             </div>
         </div>
     @endif
+
+    <script>
+    function copyAttendanceCode(code) {
+        function onSuccess() {
+            window.dispatchEvent(new CustomEvent('swal:success', {
+                detail: { title: 'Copied!', message: 'Attendance code copied to clipboard' }
+            }));
+        }
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(code).then(onSuccess).catch(function() {
+                fallbackCopy(code, onSuccess);
+            });
+        } else {
+            fallbackCopy(code, onSuccess);
+        }
+    }
+    function fallbackCopy(text, onSuccess) {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        ta.style.top = '-9999px';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try {
+            document.execCommand('copy');
+            if (onSuccess) { onSuccess(); }
+        } catch(e) {}
+        document.body.removeChild(ta);
+    }
+    </script>
 </div>

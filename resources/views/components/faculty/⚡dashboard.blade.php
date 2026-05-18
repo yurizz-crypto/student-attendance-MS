@@ -8,7 +8,10 @@ new class extends Component {
     // State for QR Generator
     public $selectedClass = '';
     public $generatedCode = null;
+    public $generatedSessionId = null;
+    public $generatedQrCode = null;
     public $expiryTime = 5; // 5 minutes default
+    public $showQrModal = false;
 
     public $reviewingExcuseId = null;
     public $reviewingExcuse = null;
@@ -29,7 +32,7 @@ new class extends Component {
         if (!$this->reviewingExcuse) return;
 
         $oldStatus = $this->reviewingExcuse->status;
-        
+
         if ($oldStatus === $status) {
             $this->closeReview();
             return;
@@ -40,24 +43,24 @@ new class extends Component {
         $record = \App\Models\AttendanceRecord::where('attendance_session_id', $this->reviewingExcuse->attendance_session_id)
             ->where('student_id', $this->reviewingExcuse->student_id)
             ->first();
-        
+
         if ($record) {
             if ($status === 'approved') {
                 $record->update([
                     'status' => 'excused',
-                    'remarks' => 'Excuse approved: ' . $this->reviewingExcuse->reason
+                    'remarks' => 'Excuse approved: ' . $this->reviewingExcuse->reason,
                 ]);
             } elseif ($oldStatus === 'approved' && ($status === 'rejected' || $status === 'pending')) {
                 // Revert to absent
                 $record->update([
                     'status' => 'absent',
-                    'remarks' => 'Excuse revoked. Originally marked absent.'
+                    'remarks' => 'Excuse revoked. Originally marked absent.',
                 ]);
             }
         }
 
         $this->reviewingExcuse->student->notify(new \App\Notifications\ExcuseProcessedNotification($this->reviewingExcuse));
-        
+
         AuditService::log(
             'excuse_processed',
             \App\Models\Excuse::class,
@@ -73,40 +76,50 @@ new class extends Component {
     public function generateCode()
     {
         $this->validate(['selectedClass' => 'required']);
-        
+
         $class = \App\Models\ClassSection::where('faculty_id', auth()->id())->findOrFail($this->selectedClass);
 
-        // Check if an open session already exists today for this class
-        $session = \App\Models\AttendanceSession::where('class_section_id', $class->id)
+        // Always generate a fresh, unique code — close any existing open session first.
+        \App\Models\AttendanceSession::where('class_section_id', $class->id)
             ->whereDate('date', today())
             ->where('status', 'open')
-            ->first();
+            ->update(['status' => 'closed']);
 
-        if (!$session) {
-            $code = strtoupper(\Illuminate\Support\Str::random(6));
-            $session = \App\Models\AttendanceSession::create([
-                'class_section_id' => $class->id,
-                'date' => today(),
-                'status' => 'open',
-                'attendance_code' => $code,
-                'start_time' => now()->format('H:i:s'),
-                // Expiry time is informative here, actual closure happens manually or via scheduler
-                'end_time' => now()->addMinutes((int)$this->expiryTime)->format('H:i:s'),
-            ]);
-            
-            $qrData = implode('|', [
-                $session->id,
-                $class->id,
-                today()->format('Y-m-d'),
-                auth()->id(),
-            ]);
-            $session->update(['qr_code_data' => $qrData]);
+        $code = strtoupper(\Illuminate\Support\Str::random(6));
 
-            $students = $class->enrollments()->with('student')->get()->pluck('student');
-            \Illuminate\Support\Facades\Notification::send($students, new \App\Notifications\SessionStartedNotification($session));
-        }
+        $session = \App\Models\AttendanceSession::create([
+            'class_section_id' => $class->id,
+            'date' => today(),
+            'status' => 'open',
+            'attendance_code' => $code,
+            'start_time' => now()->format('H:i:s'),
+            'end_time' => now()->addMinutes((int) $this->expiryTime)->format('H:i:s'),
+        ]);
+
+        $qrData = implode('|', [
+            $session->id,
+            $class->id,
+            today()->format('Y-m-d'),
+            auth()->id(),
+        ]);
+        $session->update(['qr_code_data' => $qrData]);
+
+        $students = $class->enrollments()->with('student')->get()->pluck('student');
+        \Illuminate\Support\Facades\Notification::send($students, new \App\Notifications\SessionStartedNotification($session));
 
         $this->generatedCode = $session->attendance_code;
+        $this->generatedSessionId = $session->id;
+        $this->generatedQrCode = (string) \SimpleSoftwareIO\QrCode\Facades\QrCode::size(256)->margin(1)->generate($qrData);
+    }
+
+    public function openQrModal()
+    {
+        $this->showQrModal = true;
+    }
+
+    public function closeQrModal()
+    {
+        $this->showQrModal = false;
     }
 
     public function with(): array
@@ -289,10 +302,13 @@ new class extends Component {
                             <p class="text-sm font-medium text-gray-500">Share this code or project the QR code.</p>
                             
                             <div class="mt-4 flex gap-2 justify-center">
-                                <button class="text-xs font-bold text-navy bg-white border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
+                                <button wire:click="openQrModal" class="text-xs font-bold text-navy bg-white border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors shadow-sm flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                                     Show QR Code
                                 </button>
-                                <button class="text-xs font-bold text-white bg-brand px-3 py-1.5 rounded-lg hover:bg-brand-hover transition-colors shadow-sm">
+                                <button onclick="copyDashboardCode('{{ $generatedCode }}')"
+                                    class="text-xs font-bold text-white bg-brand px-3 py-1.5 rounded-lg hover:bg-brand-hover transition-colors shadow-sm flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                                     Copy Code
                                 </button>
                             </div>
@@ -409,4 +425,77 @@ new class extends Component {
             </div>
         </div>
     @endif
+
+    <!-- QR Code Modal (Dashboard) -->
+    @if($showQrModal)
+        <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" wire:click="closeQrModal">
+            <div class="bg-white rounded-3xl shadow-xl max-w-sm w-full overflow-hidden animate-fade-in-up" @click.stop>
+                <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+                    <h3 class="text-lg font-bold text-navy">Attendance QR Code</h3>
+                    <button wire:click="closeQrModal" class="text-gray-400 hover:text-gray-600 transition-colors">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="flex justify-center bg-white p-4 rounded-xl border border-gray-200">
+                        @if($generatedQrCode)
+                            {!! $generatedQrCode !!}
+                        @else
+                            <div class="flex flex-col items-center gap-2 text-gray-400 py-8">
+                                <svg class="w-12 h-12 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                <span class="text-sm">Generating QR code...</span>
+                            </div>
+                        @endif
+                    </div>
+                    <div class="text-center">
+                        <p class="text-xs text-gray-500 mb-3">Students scan this QR code or use the manual code below.</p>
+                        <div class="inline-flex flex-col items-center p-3 bg-gray-50 rounded-xl border border-gray-200">
+                            <span class="text-xs text-gray-500 font-medium mb-1">Manual Code:</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-2xl font-black font-mono text-brand tracking-[0.2em]">{{ $generatedCode }}</span>
+                                <button onclick="copyDashboardCode('{{ $generatedCode }}')" class="p-1.5 text-gray-400 hover:text-brand bg-white rounded-lg border border-gray-200 hover:border-brand shadow-sm transition-all" title="Copy Code">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="window.print()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-xl font-semibold hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 text-sm">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                            Print
+                        </button>
+                        <button wire:click="closeQrModal" class="flex-1 px-4 py-2 bg-brand text-white rounded-xl font-semibold hover:bg-brand-hover transition-colors text-sm">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <script>
+    function copyDashboardCode(code) {
+        function onSuccess() {
+            window.dispatchEvent(new CustomEvent('swal:success', {
+                detail: { title: 'Copied!', message: 'Attendance code copied to clipboard' }
+            }));
+        }
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(code).then(onSuccess).catch(function() { fallbackDashboardCopy(code, onSuccess); });
+        } else {
+            fallbackDashboardCopy(code, onSuccess);
+        }
+    }
+    function fallbackDashboardCopy(text, onSuccess) {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try { document.execCommand('copy'); if (onSuccess) onSuccess(); } catch(e) {}
+        document.body.removeChild(ta);
+    }
+    </script>
 </div>
