@@ -291,13 +291,15 @@ class AttendanceRecords extends Component
         $session = AttendanceSession::with('classSection.enrollments.student')
             ->findOrFail($sessionId);
 
+        // Pre-load all attendance records for this session in one query (fixes N+1)
+        $records = AttendanceRecord::where('attendance_session_id', $sessionId)
+            ->get()
+            ->keyBy('student_id');
+
         $this->studentAttendance = [];
 
-        // Get all enrolled students
         foreach ($session->classSection->enrollments as $enrollment) {
-            $record = AttendanceRecord::where('attendance_session_id', $sessionId)
-                ->where('student_id', $enrollment->student_id)
-                ->first();
+            $record = $records->get($enrollment->student_id);
 
             $this->studentAttendance[] = [
                 'student_id' => $enrollment->student_id,
